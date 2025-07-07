@@ -25,8 +25,8 @@ wsn_ml_pipeline_model/
 │   ├── raw/               # Raw sensor data
 │   ├── cleaned/           # Cleaned data output
 │   └── preprocessed_data/ # Preprocessed/segmented data
-├── data/                  # Data storage
-│   └── clean_data.py      # Data cleaning
+├── data_cleaner/          # Data cleaning
+│   └── clean_data.py      
 ├── logs/                  # Log files
 │   └── app.log
 ├── preprocess/            # preprocessing scripts
