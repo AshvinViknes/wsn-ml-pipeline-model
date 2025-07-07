@@ -15,7 +15,7 @@ import pandas as pd
 from typing import List
 from wsn_ml_pipeline_model.utils.save_utils import FrameSaver
 from wsn_ml_pipeline_model.config.logger import LoggerConfigurator   
-from wsn_ml_pipeline_model.preprocess.clean_data import DataCleaner
+from wsn_ml_pipeline_model.data_cleaner.clean_data import DataCleaner
 from wsn_ml_pipeline_model.preprocess.preprocessing import DataPreprocessor
 from wsn_ml_pipeline_model.config.constants import FRAME_SIZE, OVERLAP, IQR_K,\
     RAW_DATA_DIR , CLEANED_DATA_DIR, PREPROCESSED_DATA_DIR

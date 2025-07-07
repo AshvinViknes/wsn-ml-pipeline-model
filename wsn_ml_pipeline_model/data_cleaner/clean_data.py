@@ -1,4 +1,4 @@
-# File: wsn_ml_pipeline_model/preprocess/clean_data.py
+# File: wsn_ml_pipeline_model/data_cleaner/clean_data.py
 # This script cleans raw sensor data from text files, extracting relevant fields and saving them in a structured CSV format.
 # It handles parsing errors gracefully and logs the number of valid lines processed.
 import os
@@ -6,7 +6,7 @@ import csv
 import logging
 from datetime import datetime
 from typing import Optional, Tuple, List
-from wsn_ml_pipeline_model.config import TIMESTAMP_FORMAT, DATA_COLUMNS
+from wsn_ml_pipeline_model.config.constants import TIMESTAMP_FORMAT, DATA_COLUMNS
 
 class DataCleaner:
     """
