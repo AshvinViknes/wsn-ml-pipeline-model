@@ -20,15 +20,16 @@ IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw
 wsn_ml_pipeline_model/
 ├── config/                # Configuration, constants, and logging setup
 │   ├── constants.py
-│   ├── logger.py
+│   └── logger.py
 ├── data/                  # Data storage
 │   ├── raw/               # Raw sensor data
 │   ├── cleaned/           # Cleaned data output
 │   └── preprocessed_data/ # Preprocessed/segmented data
+├── data/                  # Data storage
+│   └── clean_data.py      # Data cleaning
 ├── logs/                  # Log files
 │   └── app.log
-├── preprocess/            # Data cleaning and preprocessing scripts
-│   ├── clean_data.py
+├── preprocess/            # preprocessing scripts
 │   ├── preprocessing.py
 │   └── preprocessing_workflow.py
 ├── utils/                 # Utility functions (e.g., saving data)
@@ -36,6 +37,28 @@ wsn_ml_pipeline_model/
 ├── requirements.txt       # Python dependencies
 ├── LICENSE                # License (GPL v3)
 └── README.md              # This file
+```
+
+---
+## Prerequisites
+
+- **Python 3.8+** (recommended)
+- **pip** (Python package installer)
+- **virtualenv** (optional, for isolated environments)
+
+To check your Python version:
+```sh
+python3 --version
+```
+
+To install pip (if not already installed):
+```sh
+python3 -m ensurepip --upgrade
+```
+
+To install virtualenv (optional but recommended):
+```sh
+pip install virtualenv
 ```
 
 ---
@@ -48,7 +71,13 @@ wsn_ml_pipeline_model/
    cd wsn_ml_pipeline_model
    ```
 
-2. **Install dependencies:**
+2. **Create a virtual env:**
+   ```sh
+    python3 -m venv venv
+    source venv/bin/activate
+   ```
+
+3. **Install dependencies:**
    ```sh
    pip install -r requirements.txt
    ```
@@ -61,7 +90,7 @@ wsn_ml_pipeline_model/
 2. **Configure pipeline parameters** in `config/constants.py`.
 3. **Run the preprocessing workflow:**
    ```sh
-   python -m preprocess.preprocessing_workflow
+    python -m wsn_ml_pipeline_model.preprocess.preprocessing_workflow
    ```
    - This will clean, normalize, and segment your data, saving results in `data/cleaned/` and `data/preprocessed_data/`.
 
@@ -73,7 +102,7 @@ wsn_ml_pipeline_model/
 
 - `config/constants.py`: Pipeline configuration and constants.
 - `config/logger.py`: Logging setup.
-- `preprocess/clean_data.py`: Data cleaning logic.
+- `data_cleaner/clean_data.py`: Data cleaning logic.
 - `preprocess/preprocessing.py`: Preprocessing functions (normalization, segmentation).
 - `preprocess/preprocessing_workflow.py`: Orchestrates the full preprocessing pipeline.
 - `utils/save_utils.py`: Utility functions for saving data.
