@@ -1,132 +1,42 @@
-# wsn-ml-pipeline-model
-IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw sensor data into frames ready for machine learning. It removes outliers, scales data, exports in CSV/NumPy, and includes model training components. Modular and extensible for end-to-end IoT ML workflows.
+# Wireless Sensing Dataset — Cleaned & Windowed (10 s, 2-ch)
 
----
+## What this is
+Preprocessed time-series windows from a wireless sensor network (nodes A, B, C) collected across five environments: garden, lake, forest, campus, bridge. Raw TXT logs were cleaned and converted into fixed-shape windows ready for modeling.
 
-## Features
+- Window length: 10 s   Overlap: 50%
+- Samples per window: 100 (uniform grid)
+- Channels (2-ch): RSSI, LQI
+- Per-window file: NumPy .npy shaped (100, 2) → (time, channels)
 
-- **Automated Data Cleaning:** Remove outliers and handle missing values from raw sensor data.
-- **Normalization & Scaling:** Standardize sensor data for ML readiness.
-- **Segmentation:** Split continuous data into frames/windows for model input.
-- **Export:** Save processed data as CSV or NumPy arrays.
-- **Logging:** Track pipeline operations and errors.
-- **Modular Design:** Easily extend or customize each pipeline stage.
+## Folder contents
+- windows/ — all window tensors (*.npy) grouped by source file
+- dataset_index.csv — one row per window:
+  - window_path — relative path to the .npy
+  - tx, rx, env — node IDs and environment tag
+  - start_ms, end_ms — UTC millisecond bounds of the window
+- manifest.json — run metadata (script version, parameters, counts)
+- cleaned/ (optional) — 3-column CSVs: timestamp_ms, rssi, lqi
 
----
+## Quick start
+Python:
+    import numpy as np, pandas as pd
+    idx = pd.read_csv("dataset_index.csv")
+    x = np.load(idx.loc[0, "window_path"])   # shape: (100, 2) = (time, channels)
+    # If your model expects (channels, time):
+    x = x.T
 
-## Directory Structure
+## How these files were produced (high level)
+1) Cleaning: tolerant parsing of TXT logs → normalize time to UTC ms, drop missing/non-finite rows, sort + dedupe, basic sanity checks. Output: *_cleaned.csv with (timestamp_ms, rssi, lqi).
+2) Windowing: slice each series into 10 s windows with 5 s hop; resample to 100 points on a uniform grid via linear interpolation. Output: .npy windows + dataset_index.csv.
 
-```
-wsn_ml_pipeline_model/
-├── config/                # Configuration, constants, and logging setup
-│   ├── constants.py
-│   └── logger.py
-├── data/                  # Data storage
-│   ├── raw/               # Raw sensor data
-│   ├── cleaned/           # Cleaned data output
-│   └── preprocessed_data/ # Preprocessed/segmented data
-├── data_cleaner/          # Data cleaning
-│   └── clean_data.py      
-├── logs/                  # Log files
-│   └── app.log
-├── preprocess/            # preprocessing scripts
-│   ├── preprocessing.py
-│   └── preprocessing_workflow.py
-├── utils/                 # Utility functions (e.g., saving data)
-│   └── save_utils.py
-├── requirements.txt       # Python dependencies
-├── LICENSE                # License (GPL v3)
-└── README.md              # This file
-```
+## Recreate the dataset (optional)
+    python clean_and_window.py \
+      --raw ./raw_organized \
+      --cleaned ./cleaned \
+      --out ./processed_10s_2ch \
+      --win_ms 10000 --step_ms 5000 --n_samples 100
 
----
-## Prerequisites
+## Notes
+- “2-channel” = two synchronized features per time step (RSSI, LQI).
+- The pipeline can be extended to more channels (e.g., derived features or additional sensors).
 
-- **Python 3.8+** (recommended)
-- **pip** (Python package installer)
-- **virtualenv** (optional, for isolated environments)
-
-To check your Python version:
-```sh
-python3 --version
-```
-
-To install pip (if not already installed):
-```sh
-python3 -m ensurepip --upgrade
-```
-
-To install virtualenv (optional but recommended):
-```sh
-pip install virtualenv
-```
-
----
-
-## Installation
-
-1. **Clone the repository:**
-   ```sh
-   git clone <repo-url>
-   cd wsn_ml_pipeline_model
-   ```
-
-2. **Create a virtual env:**
-   ```sh
-    python3 -m venv venv
-    source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-
----
-
-## Usage
-
-1. **Prepare your raw sensor data** in `data/raw/` as CSV files.
-2. **Configure pipeline parameters** in `config/constants.py`.
-3. **Run the preprocessing workflow:**
-   ```sh
-    python -m wsn_ml_pipeline_model.preprocess.preprocessing_workflow
-   ```
-   - This will clean, normalize, and segment your data, saving results in `data/cleaned/` and `data/preprocessed_data/`.
-
-4. **Check logs** in `logs/app.log` for pipeline status and errors.
-
----
-
-## Modules Overview
-
-- `config/constants.py`: Pipeline configuration and constants.
-- `config/logger.py`: Logging setup.
-- `data_cleaner/clean_data.py`: Data cleaning logic.
-- `preprocess/preprocessing.py`: Preprocessing functions (normalization, segmentation).
-- `preprocess/preprocessing_workflow.py`: Orchestrates the full preprocessing pipeline.
-- `utils/save_utils.py`: Utility functions for saving data.
-
----
-
-## Requirements
-
-See `requirements.txt`:
-
-- numpy
-- pandas
-- tensorflow
-- scikit-learn
-- matplotlib
-
----
-
-## License
-
-This project is licensed under the GNU GPL v3.
-
----
-
-## Contributing
-
-Contributions are welcome!
