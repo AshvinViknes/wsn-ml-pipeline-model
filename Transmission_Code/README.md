@@ -13,7 +13,7 @@ Minimal RIOT app to **transmit test packets** and **log link-layer RSSI/LQI** on
 ```bash
 make all
 make flash
-make term
+make term | tee node_A_from_B_env_1.txt
 ```
 
 ## **Shell Commands**
