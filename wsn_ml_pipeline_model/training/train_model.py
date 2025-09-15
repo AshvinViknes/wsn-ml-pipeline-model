@@ -1,4 +1,4 @@
-# train_model.py
+# File: wsn_ml_pipeline_model/training/train_model.py
 # This script defines and trains a machine learning model (1D-CNN or ResNet1D) on preprocessed sensor data.
 # It includes data loading, model definition, training, evaluation, and saving the trained model and
 # performance metrics.  
@@ -452,8 +452,35 @@ class WSNPipeline:
         plt.savefig(save_path)
         plt.savefig(f"{run_dir}/{filename.replace(' ', '_')}.png")
         plt.close()
+    
+    def get_latest_checkpoint(self,result_dir):
+        """
+        Get the latest model checkpoint (.pt) file from the result directory.
+        Returns the path to the latest checkpoint or None if not found.
+        """
+        pt_files = sorted(Path(result_dir).rglob("model_*.pt"), key=os.path.getmtime)
+        return str(pt_files[-1]) if pt_files else None
 
-    def run(self, X=None, y=None, class_map=None, L=None, meta=None):
+    def run_multiple(self, n_runs=3, resume_latest=True):
+        """
+        Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
+        Args:
+            n_runs (int): Number of runs.
+            resume_latest (bool): If True, resume from the latest checkpoint in each run.
+        """
+        result_dir = TRAIN_OUTPUT_DIR
+        for i in range(n_runs):
+            self.logger.info(f"=== Training run {i+1}/{n_runs} ===")
+            resume_path = None
+            if resume_latest:
+                resume_path = self.get_latest_checkpoint(result_dir)
+                if resume_path:
+                    self.logger.info(f"Resuming from: {resume_path}")
+                else:
+                    self.logger.info("No checkpoint found, training from scratch.")
+            self.run(resume_path=resume_path)
+            
+    def run(self, X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
         """
         Run the end-to-end ML workflow: data loading, model training, evaluation, and saving results.
         Args:
@@ -462,6 +489,7 @@ class WSNPipeline:
             class_map (dict): Optional preloaded class mapping.
             L (int): Optional length of each frame.
             meta (list): Optional metadata list.
+            resume_path (str): Optional path to a .pt checkpoint to resume training.
         """
         # Step 1: Load data if not provided
         if X is None or y is None or class_map is None or L is None:
@@ -535,6 +563,10 @@ class WSNPipeline:
         # Step 5: Initialize model
         model = ModelFactory.get_model(
             self.config.MODEL_TYPE, X.shape[1], num_classes, L).to(DEVICE)
+        # Resume from checkpoint if provided
+        if resume_path is not None and os.path.isfile(resume_path):
+            self.logger.info(f"Resuming training from checkpoint: {resume_path}")
+            model.load_state_dict(torch.load(resume_path, map_location=DEVICE))
         crit = nn.CrossEntropyLoss()
         opt = torch.optim.Adam(model.parameters(), lr=self.config.LR)
         trainer = Trainer(model, crit, opt, DEVICE)
@@ -586,7 +618,7 @@ class WSNPipeline:
                         "y_len": int(y.shape[0])
                     },f, indent=2)
 
-def run(X=None, y=None, class_map=None, L=None, meta=None):
+def run(X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
     """
         Entry point to run the WSNPipeline.
         Args:
@@ -595,9 +627,24 @@ def run(X=None, y=None, class_map=None, L=None, meta=None):
             class_map (dict): Optional preloaded class mapping.
             L (int): Optional length of each frame.
             meta (list): Optional metadata list.
+            resume_path (str): Optional path to a .pt checkpoint to resume training.
     """
     pipeline = WSNPipeline()
-    pipeline.run(X, y, class_map, L, meta)
+    pipeline.run(X, y, class_map, L, meta, resume_path=resume_path)
+
+def run_multiple(n_runs=3, resume_latest=True):
+    """
+    Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
+    Args:
+        n_runs (int): Number of runs.
+        resume_latest (bool): If True, resume from the latest checkpoint in each run.
+    """
+    pipeline = WSNPipeline()
+    pipeline.run_multiple(n_runs=n_runs, resume_latest=resume_latest)
 
 if __name__ == "__main__":
-    run()
+    # For a single run (from scratch or resume), use:
+    # run(resume_path="path/to/your_checkpoint.pt")
+    #
+    # For multiple runs, use:
+    run_multiple(n_runs=25, resume_latest=True)
