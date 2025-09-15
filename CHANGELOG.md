@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.0] - 2025-09-15
+
+### Added
+- Added workflow control constants: `RESUME_TRAINING`, `PREPROCESSING_ACTIVE`, and `N_TRAIN_RUNS` in `config/constants.py` for flexible pipeline execution.
+- Enhanced `WSNPipeline` and training logic to support resuming training from the latest checkpoint and running multiple training cycles automatically.
+- Added utility to dynamically locate and load the latest model checkpoint for resuming training.
+- Updated `MLWorkflow` and workflow entrypoint to use the new constants for controlling preprocessing, checkpoint resuming, and number of training runs.
+- Improved documentation and usage examples in workflow script to reflect new workflow control options.
+
+### Changed
+- Refactored workflow and training scripts to use the new constants instead of hardcoded arguments for pipeline control.
+
 ## [0.2.0] - 2025-09-14
 
 ### Added
