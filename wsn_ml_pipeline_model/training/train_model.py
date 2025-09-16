@@ -405,11 +405,11 @@ class WSNPipeline:
 
         self.logger = LoggerConfigurator.setup_logging() or logger
 
-    def plot_confusion_matrix_matplotlib(self, tag, run_dir, y_true, y_pred,
+    def plot_confusion_matrix_matplotlib(self, run_idx, run_dir, y_true, y_pred,
                                          labels, title, normalize=True, cmap=plt.cm.Blues):
         """Plot confusion matrix using matplotlib and save to file.
         Args:
-            tag: identifier for the run, used in filename.
+            run_idx: run index, used in filename.
             run_dir: directory to save the plot.
             y_true: true labels.
             y_pred: predicted labels.
@@ -449,7 +449,7 @@ class WSNPipeline:
                         color="white" if cm[i, j] > thresh else "black")
         fig.tight_layout()
 
-        filename = f"ConfMat_{tag}"
+        filename = f"ConfMat_run{run_idx}"
         save_path = os.path.abspath(
             f"{run_dir}/{filename.replace(' ', '_')}.png")
         self.logger.info(f"Saving confusion matrix to: {save_path}")
@@ -579,7 +579,7 @@ class WSNPipeline:
                 X, y, test_size=self.config.TEST_SIZE, random_state=self.config.SEED, stratify=y
             )
             self.logger.info(
-                f"Seen Split            : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                f"Seen Split           : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
         else:
             if self.config.SCENARIO == "I":
                 node_per_frame = []
@@ -662,7 +662,7 @@ class WSNPipeline:
                              for i in range(len(inv_class_map))])
 
         self.plot_confusion_matrix_matplotlib(
-            tag, run_dir,
+            run_idx, run_dir,
             y_true, y_pred, label_names,
             f"{self.config.MODEL_TYPE.upper()} {self.config.INPUT_CHANNEL.upper()}"
         )
@@ -680,11 +680,16 @@ class WSNPipeline:
                 "model": self.config.MODEL_TYPE,
                 "channel": self.config.INPUT_CHANNEL,
                 "epochs": self.config.EPOCHS,
+                "total_epochs": total_epochs,
                 "L": L,
                 "seen_split": split_name,
+                "train": int(Xtr.shape[0]),
+                "test": int(Xte.shape[0]),
                 "X_shape": X.shape,
                 "y_len": int(y.shape[0]),
-                "total_epochs": total_epochs
+                "best_acc": best_acc,
+                "classification_report": classification_report(y_true, y_pred),
+                "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
         self.logger.info(
