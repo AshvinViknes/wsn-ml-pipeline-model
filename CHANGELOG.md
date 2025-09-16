@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 ---
+## [0.4.1] - 2025-09-16
+
+### Added
+- Extended `meta_run.json` to store richer training information (config, data split, results).
+
+### Changed
+- Confusion matrix output file naming now uses run index instead of tag for clarity.
+- Refactored `train_model.py`:
+  - Introduced helper function `get_split_name()` to generate consistent split naming (`Seen(...)` / `Unseen(...)`).
+  - Introduced helper function `get_tag()` to construct run tags from scenario, split, model type, and input channel.
+  - Removed duplicate inline definitions of `split_name` and `tag` in `run_multiple()` and `run()`.
+- Simplified workflow by removing `PREPROCESSING_ACTIVE` flag; preprocessing now always runs before training.
 
 ## [0.4.0] - 2025-09-16
 
