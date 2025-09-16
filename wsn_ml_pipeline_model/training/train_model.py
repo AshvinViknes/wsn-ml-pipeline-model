@@ -1,7 +1,7 @@
 # File: wsn_ml_pipeline_model/training/train_model.py
 # This script defines and trains a machine learning model (1D-CNN or ResNet1D) on preprocessed sensor data.
 # It includes data loading, model definition, training, evaluation, and saving the trained model and
-# performance metrics.  
+# performance metrics.
 
 import os
 import re
@@ -12,7 +12,6 @@ import logging
 import numpy as np
 import torch.nn as nn
 from pathlib import Path
-from datetime import datetime
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from torch.utils.data import Dataset, DataLoader
@@ -101,7 +100,7 @@ class SimpleCNN1D(nn.Module):
         num_classes (int): Number of output classes.
         L (int): Length of the input frames.
     """
-    
+
     def __init__(self, in_ch=2, num_classes=5, L=100):
         super().__init__()
         self.net = nn.Sequential(
@@ -125,7 +124,8 @@ class SimpleCNN1D(nn.Module):
 class ResidualBlock1D(nn.Module):
     """
         A single residual block for 1D ResNet.
-    """ 
+    """
+
     def __init__(self, ch_in, ch_out, stride=1):
         """ 
             Initialize the ResidualBlock1D.
@@ -156,7 +156,7 @@ class ResidualBlock1D(nn.Module):
         Returns:    
             torch.Tensor: Output tensor of shape (N, ch_out, L_out).
         """
-        
+
         identity = x
         out = self.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
@@ -170,13 +170,14 @@ class ResNet1D(nn.Module):
     """
         A small ResNet architecture for 1D time-series classification.
     """
+
     def __init__(self, in_ch=2, num_classes=5):
         """
             Initialize the ResNet1D model.
             Args:   
                 in_ch (int): Number of input channels (e.g., 1 for RSSI, 2 for RSSI+LQI).
                 num_classes (int): Number of output classes.    
-        """ 
+        """
         super().__init__()
         self.stem = nn.Sequential(
             nn.Conv1d(in_ch, 32, 7, stride=2, padding=3, bias=False),
@@ -197,7 +198,7 @@ class ResNet1D(nn.Module):
                 x (torch.Tensor): Input tensor of shape (N, in_ch, L).  
             Returns:                                                                    
                 torch.Tensor: Output tensor of shape (N, num_classes).
-        """ 
+        """
         x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -214,6 +215,7 @@ class FrameDataLoader:
     It reads all .npy files in the specified directory, merges them into a single dataset,
     and creates training and testing splits based on the specified scenario and split type.
     """
+
     def __init__(self, input_dir, scenario, input_channel):
         """
         Initialize the FrameDataLoader with the input directory, scenario, and input channel.
@@ -221,7 +223,7 @@ class FrameDataLoader:
             input_dir (str): Directory containing .npy files.   
             scenario (str): "I" for environment classification, "II" for receiving node classification. 
             input_channel (str): "rssi", "lqi", or "both" to select input features. 
-        """ 
+        """
         self.input_dir = input_dir
         self.scenario = scenario
         self.input_channel = input_channel
@@ -329,6 +331,7 @@ class Trainer:
     """
         Trainer class to handle training and evaluation of the model.
     """
+
     def __init__(self, model, crit, opt, device):
         """
             Initialize the Trainer with model, loss function, optimizer, and device.
@@ -375,6 +378,7 @@ class WSNPipeline:
         Orchestrates the end-to-end ML workflow: data loading, model training, evaluation,
         and saving results.
     """
+
     def __init__(self, logger: logging.Logger = None):
         """
             Initialize the WSNPipeline with configuration and logger.
@@ -397,12 +401,12 @@ class WSNPipeline:
             INPUT_CHANNEL=INPUT_CHANNEL,
             MODEL_TYPE=MODEL_TYPE,
             TEST_SIZE=TEST_SIZE,
-            )
-        
+        )
+
         self.logger = LoggerConfigurator.setup_logging() or logger
 
-    def plot_confusion_matrix_matplotlib(self, tag, run_dir, y_true, y_pred, 
-                                        labels, title, normalize=True, cmap=plt.cm.Blues):
+    def plot_confusion_matrix_matplotlib(self, tag, run_dir, y_true, y_pred,
+                                         labels, title, normalize=True, cmap=plt.cm.Blues):
         """Plot confusion matrix using matplotlib and save to file.
         Args:
             tag: identifier for the run, used in filename.
@@ -414,7 +418,7 @@ class WSNPipeline:
             normalize: whether to normalize the confusion matrix.
             cmap: colormap for the plot.
         """
-        
+
         cm = confusion_matrix(y_true, y_pred, labels=range(len(labels)))
         if normalize:
             cm = cm.astype("float") / \
@@ -452,35 +456,67 @@ class WSNPipeline:
         plt.savefig(save_path)
         plt.savefig(f"{run_dir}/{filename.replace(' ', '_')}.png")
         plt.close()
-    
-    def get_latest_checkpoint(self,result_dir):
+
+    def get_latest_checkpoint(self, result_dir):
         """
         Get the latest model checkpoint (.pt) file from the result directory.
         Returns the path to the latest checkpoint or None if not found.
         """
-        pt_files = sorted(Path(result_dir).rglob("model_*.pt"), key=os.path.getmtime)
+        pt_files = sorted(Path(result_dir).rglob(
+            "model_*.pt"), key=os.path.getmtime)
         return str(pt_files[-1]) if pt_files else None
+
+    def get_run_dir_and_next_index(self, tag):
+        """
+        Returns the run directory and the next run index based on existing files.
+        """
+        run_dir = os.path.join(self.config.TRAIN_OUTPUT_DIR, tag)
+        os.makedirs(run_dir, exist_ok=True)
+        existing = list(Path(run_dir).glob("model_run*.pt"))
+        indices = []
+        for f in existing:
+            m = re.search(r"model_run(\d+)\.pt", f.name)
+            if m:
+                indices.append(int(m.group(1)))
+        next_idx = max(indices) + 1 if indices else 1
+        return run_dir, next_idx
 
     def run_multiple(self, n_runs=3, resume_latest=True):
         """
-        Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
+        Run multiple training sessions with different random seeds.
         Args:
-            n_runs (int): Number of runs.
-            resume_latest (bool): If True, resume from the latest checkpoint in each run.
+            n_runs (int): Number of runs to execute.
+            resume_latest (bool): Whether to resume from the latest checkpoint if available.
         """
-        result_dir = TRAIN_OUTPUT_DIR
+        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
+            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
+        tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        run_dir, next_idx = self.get_run_dir_and_next_index(tag)
         for i in range(n_runs):
-            self.logger.info(f"=== Training run {i+1}/{n_runs} ===")
+            run_idx = next_idx + i
+            prev_run_idx = run_idx - 1
             resume_path = None
-            if resume_latest:
-                resume_path = self.get_latest_checkpoint(result_dir)
-                if resume_path:
+            prev_total_epochs = 0
+            if resume_latest and prev_run_idx >= 1:
+                resume_path = os.path.join(
+                    run_dir, f"model_run{prev_run_idx}.pt")
+                if os.path.exists(resume_path):
                     self.logger.info(f"Resuming from: {resume_path}")
+                    prev_total_epochs = self.get_total_epochs_by_index(
+                        run_dir, prev_run_idx)
                 else:
-                    self.logger.info("No checkpoint found, training from scratch.")
-            self.run(resume_path=resume_path)
-            
-    def run(self, X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
+                    self.logger.info(
+                        "No checkpoint found, training from scratch.")
+            else:
+                self.logger.info("Training from scratch (no resume).")
+            self.logger.info(
+                f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
+            self.run(
+                tag=tag, run_dir=run_dir, run_idx=run_idx,
+                resume_path=resume_path, prev_total_epochs=prev_total_epochs
+            )
+
+    def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None, prev_total_epochs=0):
         """
         Run the end-to-end ML workflow: data loading, model training, evaluation, and saving results.
         Args:
@@ -489,8 +525,17 @@ class WSNPipeline:
             class_map (dict): Optional preloaded class mapping.
             L (int): Optional length of each frame.
             meta (list): Optional metadata list.
+            tag (str): Optional tag for the run, used to create a unique directory for saving models and results.
+            run_dir (str): Optional directory for saving results.
+            run_idx (int): Optional run index for naming.
             resume_path (str): Optional path to a .pt checkpoint to resume training.
         """
+        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
+            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
+        if tag is None:
+            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        if run_dir is None or run_idx is None:
+            run_dir, run_idx = self.get_run_dir_and_next_index(tag)
         # Step 1: Load data if not provided
         if X is None or y is None or class_map is None or L is None:
             loader = FrameDataLoader(
@@ -501,27 +546,31 @@ class WSNPipeline:
             X, y, class_map, L, meta = loader.load()
         num_classes = len(class_map)
         self.logger.info("========= Configuration Summary =========")
-        self.logger.info(f"Model       : {self.config.MODEL_TYPE.upper()}")
-        self.logger.info(f"Channel     : {self.config.INPUT_CHANNEL.upper()}")
-        self.logger.info(f"Scenario    : {self.config.SCENARIO}")
-        self.logger.info(f"Epochs      : {self.config.EPOCHS}")
-        self.logger.info(f"Classes     : {num_classes}")
-        self.logger.info(f"Input Shape : X={X.shape}, y={y.shape}, L={L}")
+        self.logger.info(
+            f"Model                : {self.config.MODEL_TYPE.upper()}")
+        self.logger.info(
+            f"Channel              : {self.config.INPUT_CHANNEL.upper()}")
+        self.logger.info(f"Scenario             : {self.config.SCENARIO}")
+        self.logger.info(f"Epochs               : {self.config.EPOCHS}")
+        self.logger.info(f"Previous Epochs      : {prev_total_epochs}")
+        self.logger.info(f"Classes              : {num_classes}")
+        self.logger.info(
+            f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
 
         # Step 2: Construct run ID and output directory for saving results
-        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-        tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}_epoch({self.config.EPOCHS})"
-        run_id = datetime.now().strftime("%Y%m%d_%H%M")
-        RUN_DIR = os.path.join(self.config.TRAIN_OUTPUT_DIR, f"{tag}_{run_id}")
-
+        if tag is None:
+            split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
+                f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
+            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        if run_dir is None or run_idx is None:
+            run_dir, run_idx = self.get_run_dir_and_next_index(tag)
         # Step 3: Create training and testing splits
         if self.config.SEEN_SPLIT:
             Xtr, Xte, ytr, yte = train_test_split(
                 X, y, test_size=self.config.TEST_SIZE, random_state=self.config.SEED, stratify=y
             )
             self.logger.info(
-                f"Seen Split  : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                f"Seen Split            : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
         else:
             if self.config.SCENARIO == "I":
                 node_per_frame = []
@@ -565,7 +614,8 @@ class WSNPipeline:
             self.config.MODEL_TYPE, X.shape[1], num_classes, L).to(DEVICE)
         # Resume from checkpoint if provided
         if resume_path is not None and os.path.isfile(resume_path):
-            self.logger.info(f"Resuming training from checkpoint: {resume_path}")
+            self.logger.info(
+                f"Resuming training from checkpoint: {resume_path}")
             model.load_state_dict(torch.load(resume_path, map_location=DEVICE))
         crit = nn.CrossEntropyLoss()
         opt = torch.optim.Adam(model.parameters(), lr=self.config.LR)
@@ -580,43 +630,70 @@ class WSNPipeline:
             if te_acc > best_acc:
                 best_acc, best_state = te_acc, {
                     k: v.cpu() for k, v in model.state_dict().items()}
-            self.logger.info(f"Epoch {epoch:02d} | train loss {tr_loss:.4f} acc {tr_acc:.4f} | "
-                                f"test loss {te_loss:.4f} acc {te_acc:.4f}")
+            self.logger.info(f"Epoch {epoch+prev_total_epochs:02d} | train loss {tr_loss:.4f} acc {tr_acc:.4f} | "
+                             f"test loss {te_loss:.4f} acc {te_acc:.4f}")
 
         # Step 7: Evaluate
         if best_state is not None:
-            model.load_state_dict({k: v.to(DEVICE)
-                                    for k, v in best_state.items()})
+            model.load_state_dict(
+                {
+                    k: v.to(DEVICE)
+                    for k, v in best_state.items()
+                }
+            )
         _, _, y_true, y_pred = trainer.run_epoch(te_ld, is_train=False)
         self.logger.info(f"Best test acc: {best_acc:.4f}\n")
         self.logger.info("Classification report:\n" + classification_report(y_true, y_pred))
         self.logger.info("Confusion matrix:\n" + str(confusion_matrix(y_true, y_pred)))
 
         # Step 8: Visualize and save confusion matrix
-        os.makedirs(RUN_DIR, exist_ok=True)
+        os.makedirs(run_dir, exist_ok=True)
         inv_class_map = {v: k for k, v in class_map.items()}
-        label_names = sorted([inv_class_map[i] for i in range(len(inv_class_map))])
+        label_names = sorted([inv_class_map[i]
+                             for i in range(len(inv_class_map))])
 
         self.plot_confusion_matrix_matplotlib(
-            tag, RUN_DIR,
+            tag, run_dir,
             y_true, y_pred, label_names,
             f"{self.config.MODEL_TYPE.upper()} {self.config.INPUT_CHANNEL.upper()}"
         )
 
         # Step 9: Save model and metadata
-        torch.save(model.state_dict(), f"{RUN_DIR}/model_{tag}.pt")
+        torch.save(model.state_dict(), f"{run_dir}/model_run{run_idx}.pt")
         sorted_class_map = {k: class_map[k] for k in sorted(class_map)}
-        with open(f"{RUN_DIR}/meta_{tag}.json", "w") as f:
+
+        total_epochs = prev_total_epochs + self.config.EPOCHS
+
+        with open(f"{run_dir}/meta_run{run_idx}.json", "w") as f:
             json.dump({
-                        "scenario": self.config.SCENARIO, 
-                        "class_map": sorted_class_map,
-                        "model": self.config.MODEL_TYPE, 
-                        "channel": self.config.INPUT_CHANNEL, 
-                        "epochs": self.config.EPOCHS, "L": L,
-                        "seen_split": split_name,
-                        "X_shape": X.shape, 
-                        "y_len": int(y.shape[0])
-                    },f, indent=2)
+                "scenario": self.config.SCENARIO,
+                "class_map": sorted_class_map,
+                "model": self.config.MODEL_TYPE,
+                "channel": self.config.INPUT_CHANNEL,
+                "epochs": self.config.EPOCHS,
+                "L": L,
+                "seen_split": split_name,
+                "X_shape": X.shape,
+                "y_len": int(y.shape[0]),
+                "total_epochs": total_epochs
+            }, f, indent=2)
+
+        self.logger.info(
+            f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+
+    def get_total_epochs_by_index(self, run_dir, prev_run_idx):
+        """
+        Get the total number of epochs from the metadata of the previous run index.
+        """
+        if prev_run_idx < 1:
+            return 0
+        meta_path = os.path.join(run_dir, f"meta_run{prev_run_idx}.json")
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r') as f:
+                meta = json.load(f)
+            return meta.get('total_epochs', 0)
+        return 0
+
 
 def run(X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
     """
@@ -632,6 +709,7 @@ def run(X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
     pipeline = WSNPipeline()
     pipeline.run(X, y, class_map, L, meta, resume_path=resume_path)
 
+
 def run_multiple(n_runs=3, resume_latest=True):
     """
     Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
@@ -641,6 +719,7 @@ def run_multiple(n_runs=3, resume_latest=True):
     """
     pipeline = WSNPipeline()
     pipeline.run_multiple(n_runs=n_runs, resume_latest=resume_latest)
+
 
 if __name__ == "__main__":
     # For a single run (from scratch or resume), use:

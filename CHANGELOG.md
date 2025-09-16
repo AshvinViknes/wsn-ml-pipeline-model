@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.4.0] - 2025-09-16
+
+### Added
+- Implemented persistent cumulative epoch tracking across multiple training runs, even when resuming from checkpoints.
+- Added logic to always read the previous run's metadata (`meta_run{N-1}.json`) to correctly accumulate total epochs for each model.
+- Updated output folder and result file naming to include number of runs and total epochs for better experiment tracking.
+- Improved training summary logging to report the correct cumulative epoch count after each run.
+- Added helper function to extract `total_epochs` from metadata JSON for robust resuming and reporting.
+
+### Changed
+- Refactored `run_multiple` and `run` methods to use previous run index and metadata for accurate epoch accumulation.
+- Ensured that all training artifacts (`.pt`, `.json`, `.png`) are consistently indexed and saved in the same output directory for a given configuration.
+- Enhanced documentation and code comments to clarify the new cumulative epoch tracking and result organization.
+
 ## [0.3.0] - 2025-09-15
 
 ### Added
