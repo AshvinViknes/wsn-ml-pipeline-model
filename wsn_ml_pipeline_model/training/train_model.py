@@ -481,6 +481,23 @@ class WSNPipeline:
         next_idx = max(indices) + 1 if indices else 1
         return run_dir, next_idx
 
+    def get_split_name(self):
+        """Helper to build the split name string."""
+        if self.config.SEEN_SPLIT:
+            return f"seen({self.config.TEST_SIZE})"
+        else:
+            return f"unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
+
+    def get_tag(self, tag=None):
+        """
+        Helper to build the tag string for a run.
+        If tag is provided, returns it; otherwise, constructs from config and split name.
+        """
+        if tag is not None:
+            return tag
+        split_name = self.get_split_name()
+        return f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+
     def run_multiple(self, n_runs=3, resume_latest=True):
         """
         Run multiple training sessions with different random seeds.
@@ -488,9 +505,7 @@ class WSNPipeline:
             n_runs (int): Number of runs to execute.
             resume_latest (bool): Whether to resume from the latest checkpoint if available.
         """
-        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-        tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        tag = self.get_tag()
         run_dir, next_idx = self.get_run_dir_and_next_index(tag)
         for i in range(n_runs):
             run_idx = next_idx + i
@@ -530,10 +545,8 @@ class WSNPipeline:
             run_idx (int): Optional run index for naming.
             resume_path (str): Optional path to a .pt checkpoint to resume training.
         """
-        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-        if tag is None:
-            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        tag = self.get_tag(tag)
+        split_name = self.get_split_name()
         if run_dir is None or run_idx is None:
             run_dir, run_idx = self.get_run_dir_and_next_index(tag)
         # Step 1: Load data if not provided
@@ -558,10 +571,6 @@ class WSNPipeline:
             f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
 
         # Step 2: Construct run ID and output directory for saving results
-        if tag is None:
-            split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-                f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
         if run_dir is None or run_idx is None:
             run_dir, run_idx = self.get_run_dir_and_next_index(tag)
         # Step 3: Create training and testing splits
