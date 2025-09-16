@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.4.0] - 2025-09-16
+
+### Added
+- Implemented persistent cumulative epoch tracking across multiple training runs, even when resuming from checkpoints.
+- Added logic to always read the previous run's metadata (`meta_run{N-1}.json`) to correctly accumulate total epochs for each model.
+- Updated output folder and result file naming to include number of runs and total epochs for better experiment tracking.
+- Improved training summary logging to report the correct cumulative epoch count after each run.
+- Added helper function to extract `total_epochs` from metadata JSON for robust resuming and reporting.
+
+### Changed
+- Refactored `run_multiple` and `run` methods to use previous run index and metadata for accurate epoch accumulation.
+- Ensured that all training artifacts (`.pt`, `.json`, `.png`) are consistently indexed and saved in the same output directory for a given configuration.
+- Enhanced documentation and code comments to clarify the new cumulative epoch tracking and result organization.
+
+## [0.3.0] - 2025-09-15
+
+### Added
+- Added workflow control constants: `RESUME_TRAINING`, `PREPROCESSING_ACTIVE`, and `N_TRAIN_RUNS` in `config/constants.py` for flexible pipeline execution.
+- Enhanced `WSNPipeline` and training logic to support resuming training from the latest checkpoint and running multiple training cycles automatically.
+- Added utility to dynamically locate and load the latest model checkpoint for resuming training.
+- Updated `MLWorkflow` and workflow entrypoint to use the new constants for controlling preprocessing, checkpoint resuming, and number of training runs.
+- Improved documentation and usage examples in workflow script to reflect new workflow control options.
+
+### Changed
+- Refactored workflow and training scripts to use the new constants instead of hardcoded arguments for pipeline control.
+
 ## [0.2.0] - 2025-09-14
 
 ### Added

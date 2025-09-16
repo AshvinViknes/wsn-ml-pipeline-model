@@ -1,4 +1,9 @@
 
+# File: wsn_ml_pipeline_model/config/constants.py
+# This file contains configuration constants for the WSN ML Pipeline Model project.
+# It includes settings for data paths, logging, training parameters, and workflow control.
+
+# -------------------- Data Processing --------------------
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S,%f"
 DATA_COLUMNS = ['timestamp', 'rssi', 'lqi']
 
@@ -8,11 +13,13 @@ IQR_K = 1.5
 FRAME_SIZE = 100
 OVERLAP = 0.5
 
+# -------------------- Data Paths --------------------
 RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
 CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
 PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
 SAVE_FRAME_CSV = False  # or True 
 
+# -------------------- Logging --------------------
 LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
 LOG_FILE = 'app.log'
 LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -27,7 +34,7 @@ TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result"  # save plot an
 # training setup
 SCENARIO         = "I"       # "I": classify by environment; "II": classify by receiving node
 INPUT_CHANNEL    = "rssi"    # Options: "rssi", "lqi", "both"
-MODEL_TYPE       = "cnn"  # Options: "cnn", "resnet"
+MODEL_TYPE       = "cnn"     # Options: "cnn", "resnet"
 BATCH_SIZE       = 128
 EPOCHS           = 5
 LR               = 1e-3
@@ -38,3 +45,8 @@ SEEN_SPLIT       = True   # True: random split (Seen); False: leave-one-env exam
 TEST_SIZE        = 0.25   # for Seen
 HELD_OUT_ENV     = 1      # for Scenario II Unseen
 HELD_OUT_NODE    = "C"    # for Scenario I Unseen
+
+# -------------------- Workflow/Experiment Control --------------------
+RESUME_TRAINING = True        # If True, resume training from latest checkpoint
+PREPROCESSING_ACTIVE = False    # If True, run preprocessing step in workflow
+N_TRAIN_RUNS = 10              # Number of times to repeat model training
