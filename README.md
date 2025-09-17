@@ -95,7 +95,7 @@ pip install virtualenv
 
 ## Usage
 
-1. **Prepare your raw sensor data** in `data/raw/` as CSV files.
+1. **Prepare your raw sensor data** in `data/raw/` as `.txt` files.
 
 2. **Configure pipeline parameters** in `config/constants.py`.
 
