@@ -3,6 +3,7 @@
 # It includes data loading, model definition, training, evaluation, and saving the trained model and
 # performance metrics.
 
+import shutil
 import os
 import re
 import json
@@ -517,6 +518,9 @@ class WSNPipeline:
             resume_latest = self.config.RESUME_TRAINING
         tag = self.get_tag()
         run_dir, next_idx = self.get_run_dir_and_next_index(tag)
+        best_global_acc = -1.0
+        best_global_run_name = None
+
         for i in range(n_runs):
             run_idx = next_idx + i
             prev_run_idx = run_idx - 1
@@ -539,10 +543,26 @@ class WSNPipeline:
             else:
                 self.logger.info(
                     f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
-            self.run(
+            acc, run_name = self.run(
                 tag=tag, run_dir=run_dir, run_idx=run_idx,
                 resume_path=resume_path
             )
+            if acc > best_global_acc:
+                best_global_acc = acc
+                best_global_run_name = run_name
+
+            
+        if best_global_run_name is not None:
+            src = os.path.join(run_dir, f"ConfMat_{best_global_run_name}.png")
+            dst = os.path.join(run_dir, "Final_Confusion_Matrix.png")
+            try:
+                shutil.copyfile(src, dst)
+                self.logger.info(
+                    f"Saved global best confusion matrix ({best_global_acc:.4f}) to: {os.path.abspath(dst)}"
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to save global best confusion matrix: {e}")
+
 
     def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None):
         """
@@ -589,6 +609,7 @@ class WSNPipeline:
         self.logger.info(f"Previous Epochs      : {prev_total_epochs}")
         self.logger.info(f"Classes              : {num_classes}")
         self.logger.info(f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
+
 
         # Step 2: Construct run ID and output directory for saving results
         if run_dir is None or run_idx is None:
@@ -714,6 +735,7 @@ class WSNPipeline:
             }, f, indent=2)
 
         self.logger.info(f"Training summary: Run '{run_name}' completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        return best_acc, run_name
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
         """
