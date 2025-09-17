@@ -409,11 +409,12 @@ class WSNPipeline:
 
         self.logger = LoggerConfigurator.setup_logging() or logger
 
-    def plot_confusion_matrix_matplotlib(self, run_idx, run_dir, y_true, y_pred,
+    def plot_confusion_matrix_matplotlib(self, run_name, run_dir, y_true, y_pred,
                                          labels, title, normalize=True, cmap=plt.cm.Blues):
-        """Plot confusion matrix using matplotlib and save to file.
+        """
+        Plot confusion matrix using matplotlib and save to file.
         Args:
-            run_idx: run index, used in filename.
+            run_name: identifier used in filename, e.g., 'single' or 'run{idx}'.
             run_dir: directory to save the plot.
             y_true: true labels.
             y_pred: predicted labels.
@@ -453,12 +454,10 @@ class WSNPipeline:
                         color="white" if cm[i, j] > thresh else "black")
         fig.tight_layout()
 
-        filename = f"ConfMat_run{run_idx}"
-        save_path = os.path.abspath(
-            f"{run_dir}/{filename.replace(' ', '_')}.png")
-        self.logger.info(f"Saving confusion matrix to: {save_path}")
+        filename = f"ConfMat_{run_name}"
+        save_path = os.path.join(run_dir, f"{filename.replace(' ', '_')}.png")
+        self.logger.info(f"Saving confusion matrix to: {os.path.abspath(save_path)}")
         plt.savefig(save_path)
-        plt.savefig(f"{run_dir}/{filename.replace(' ', '_')}.png")
         plt.close()
 
     def get_latest_checkpoint(self, result_dir):
@@ -496,11 +495,12 @@ class WSNPipeline:
         """
         Helper to build the tag string for a run.
         If tag is provided, returns it; otherwise, constructs from config and split name.
+        The tag now also includes the epoch count as '_epoch({self.config.EPOCHS})' at the end.
         """
         if tag is not None:
             return tag
         split_name = self.get_split_name()
-        return f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        return f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}_epoch({self.config.EPOCHS})"
 
     def run_multiple(self, n_runs=None, resume_latest=None):
         """
@@ -532,8 +532,13 @@ class WSNPipeline:
                         "No checkpoint found, training from scratch.")
             else:
                 self.logger.info("Training from scratch (no resume).")
-            self.logger.info(
-                f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
+
+            if not resume_latest and n_runs == 1:
+                # Single run from scratch, skip cumulative run logging
+                self.logger.info("=== Single training run ========")
+            else:
+                self.logger.info(
+                    f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
             self.run(
                 tag=tag, run_dir=run_dir, run_idx=run_idx,
                 resume_path=resume_path
@@ -671,19 +676,25 @@ class WSNPipeline:
         inv_class_map = {v: k for k, v in class_map.items()}
         label_names = sorted([inv_class_map[i] for i in range(len(inv_class_map))])
 
+        # Set run_name once, use for all outputs
+        if not self.config.RESUME_TRAINING and self.config.N_TRAIN_RUNS == 1:
+            run_name = "single"
+        else:
+            run_name = f"run{run_idx}"
+
         self.plot_confusion_matrix_matplotlib(
-            run_idx, run_dir,
+            run_name, run_dir,
             y_true, y_pred, label_names,
             f"{self.config.MODEL_TYPE.upper()} {self.config.INPUT_CHANNEL.upper()}"
         )
 
-        # Step 9: Save model and metadata
-        torch.save(model.state_dict(), f"{run_dir}/model_run{run_idx}.pt")
+        # Step 9: Save model and metadata with updated file naming logic
+        torch.save(model.state_dict(), f"{run_dir}/model_{run_name}.pt")
         sorted_class_map = {k: class_map[k] for k in sorted(class_map)}
 
         total_epochs = prev_total_epochs + self.config.EPOCHS
 
-        with open(f"{run_dir}/meta_run{run_idx}.json", "w") as f:
+        with open(f"{run_dir}/meta_{run_name}.json", "w") as f:
             json.dump({
                 "scenario": self.config.SCENARIO,
                 "class_map": sorted_class_map,
@@ -702,7 +713,7 @@ class WSNPipeline:
                 "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
-        self.logger.info(f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        self.logger.info(f"Training summary: Run '{run_name}' completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
         """
@@ -749,4 +760,5 @@ if __name__ == "__main__":
     # run(resume_path="path/to/your_checkpoint.pt")
 
     # For multiple runs, use:
-    run_multiple()
+    run_multiple() # use N_TRAIN_RUNS from constants.py as default n_runs
+    # run_multiple(5) # set n_runs = 5

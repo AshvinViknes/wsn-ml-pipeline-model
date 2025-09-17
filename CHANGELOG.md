@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 
 ---
+
+## [0.4.3] - 2025-09-17
+
+### Added
+- Special case for single-run training (`RESUME_TRAINING=False`, `N_TRAIN_RUNS=1`): saves as `model_single.pt`, `meta_single.json`, `ConfMat_single.png`
+- Updated `get_tag()` to append `_epoch({EPOCHS})` to output directory name for clearer separation across epoch settings
+
+### Changed
+- Multi-run continues with run-indexed naming for model, metadata, and confusion matrix files
+- Centralized `run_name` determination in `run()` to avoid duplication
+- Improved logging: single-run mode logs "=== Single training run ===" instead of run counters
+- Simplified confusion matrix saving by removing duplicate `plt.savefig`
+
+---
 ## [0.4.2] - 2025-09-17
 
 ### Changed
@@ -25,6 +39,7 @@ All notable changes to this project will be documented in this file.
   - Removed duplicate inline definitions of `split_name` and `tag` in `run_multiple()` and `run()`.
 - Simplified workflow by removing `PREPROCESSING_ACTIVE` flag; preprocessing now always runs before training.
 
+---
 ## [0.4.0] - 2025-09-16
 
 ### Added
@@ -39,6 +54,7 @@ All notable changes to this project will be documented in this file.
 - Ensured that all training artifacts (`.pt`, `.json`, `.png`) are consistently indexed and saved in the same output directory for a given configuration.
 - Enhanced documentation and code comments to clarify the new cumulative epoch tracking and result organization.
 
+---
 ## [0.3.0] - 2025-09-15
 
 ### Added
@@ -51,6 +67,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Refactored workflow and training scripts to use the new constants instead of hardcoded arguments for pipeline control.
 
+---
 ## [0.2.0] - 2025-09-14
 
 ### Added
@@ -66,6 +83,7 @@ All notable changes to this project will be documented in this file.
 - Improved error handling and logging throughout pipeline modules
 - Enhanced modularity and clarity of pipeline entry points
 
+---
 ## [0.1.0] - 2025-09-12
 
 ### Added
