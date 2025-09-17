@@ -6,7 +6,6 @@
 from wsn_ml_pipeline_model.config.logger import LoggerConfigurator
 from wsn_ml_pipeline_model.training.train_model import WSNPipeline
 from wsn_ml_pipeline_model.preprocess.preprocessing_workflow import PreprocessingWorkflow
-from wsn_ml_pipeline_model.config.constants import RESUME_TRAINING, N_TRAIN_RUNS
 class MLWorkflow:
     """
         Orchestrates the end-to-end ML pipeline:
@@ -21,13 +20,12 @@ class MLWorkflow:
         self.trainer = WSNPipeline(logger=self.logger)
         self.preprocessor = PreprocessingWorkflow(logger=self.logger)
     
-    def run_pipeline(self ,X=None, y=None, class_map=None, 
-            L=None, meta=None,resume_latest=RESUME_TRAINING ,
-            n_runs=N_TRAIN_RUNS):
+    def run_pipeline(self, X=None, y=None, class_map=None, 
+            L=None, meta=None):
         """
             Run the full ML pipeline: preprocessing followed by training.
-            If resume_latest is True, it resumes training from the latest checkpoint.
-            n_runs specifies how many training runs to perform if resume_latest is True.
+            The training behavior (whether to resume and how many runs) is controlled 
+            by the constants in `config/constants.py` (RESUME_TRAINING, N_TRAIN_RUNS).
             X, y, class_map, L, meta are optional parameters for training data and metadata.
 
             Note: The preprocessing step always runs before training.
@@ -38,8 +36,6 @@ class MLWorkflow:
                 - class_map: Class mapping (optional, can be loaded in preprocessing)
                 - L: Additional data (optional, can be loaded in preprocessing)
                 - meta: Metadata (optional, can be loaded in preprocessing)
-                - resume_latest: Whether to resume from the latest checkpoint (default: True)
-                - n_runs: Number of training runs if resuming (default: 5)
             
         """
         
@@ -47,14 +43,10 @@ class MLWorkflow:
         self.logger.info("Running preprocessing workflow")
         self.preprocessor.preprocess_run()
         self.logger.info("Preprocessing completed")
-        if not resume_latest:
-            self.logger.info("Running training workflow")
-            self.trainer.run(X, y, class_map, L, meta)
-            self.logger.info("Training completed")
-        else:
-            self.logger.info("Running n training workflow")
-            self.trainer.run_multiple(n_runs=n_runs, resume_latest=resume_latest)
-            self.logger.info("Training n completed")
+        self.logger.info("Running training workflow")
+        # Delegates behavior (resume vs. from-scratch, number of runs) to trainer config.
+        self.trainer.run_multiple()
+        self.logger.info("Training completed")
         self.logger.info("ML pipeline completed")
         
 if __name__ == "__main__":
@@ -85,7 +77,4 @@ if __name__ == "__main__":
     """
     
     workflow = MLWorkflow()
-    workflow.run_pipeline(
-            resume_latest=RESUME_TRAINING ,
-            n_runs=N_TRAIN_RUNS
-        )
+    workflow.run_pipeline()
