@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from wsn_ml_pipeline_model.config.logger import LoggerConfigurator
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from wsn_ml_pipeline_model.config.constants import TRAIN_INPUT_DIR, TRAIN_OUTPUT_DIR, SCENARIO, SEEN_SPLIT, HELD_OUT_ENV, \
-    HELD_OUT_NODE, BATCH_SIZE, EPOCHS, LR, SEED, INPUT_CHANNEL, MODEL_TYPE, TEST_SIZE
+    HELD_OUT_NODE, BATCH_SIZE, EPOCHS, LR, SEED, INPUT_CHANNEL, MODEL_TYPE, TEST_SIZE, N_TRAIN_RUNS, RESUME_TRAINING
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -50,6 +50,8 @@ class Config:
     INPUT_CHANNEL: str
     MODEL_TYPE: str
     TEST_SIZE: float
+    RESUME_TRAINING: bool
+    N_TRAIN_RUNS: int
 
 
 def parse_name(fname: str):
@@ -401,6 +403,8 @@ class WSNPipeline:
             INPUT_CHANNEL=INPUT_CHANNEL,
             MODEL_TYPE=MODEL_TYPE,
             TEST_SIZE=TEST_SIZE,
+            RESUME_TRAINING=RESUME_TRAINING,
+            N_TRAIN_RUNS=N_TRAIN_RUNS,
         )
 
         self.logger = LoggerConfigurator.setup_logging() or logger
@@ -498,27 +502,31 @@ class WSNPipeline:
         split_name = self.get_split_name()
         return f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
 
-    def run_multiple(self, n_runs=3, resume_latest=True):
+    def run_multiple(self, n_runs=None, resume_latest=None):
         """
         Run multiple training sessions with different random seeds.
         Args:
-            n_runs (int): Number of runs to execute.
-            resume_latest (bool): Whether to resume from the latest checkpoint if available.
+            n_runs (int, optional): Number of additional runs to execute (appended to existing runs).
+                If None, uses self.config.N_TRAIN_RUNS.
+            resume_latest (bool, optional): If True, resume from the latest checkpoint in each run.
+                If None, uses self.config.RESUME_TRAINING.
         """
+        if n_runs is None:
+            n_runs = self.config.N_TRAIN_RUNS
+        if resume_latest is None:
+            resume_latest = self.config.RESUME_TRAINING
         tag = self.get_tag()
         run_dir, next_idx = self.get_run_dir_and_next_index(tag)
         for i in range(n_runs):
             run_idx = next_idx + i
             prev_run_idx = run_idx - 1
             resume_path = None
-            prev_total_epochs = 0
             if resume_latest and prev_run_idx >= 1:
-                resume_path = os.path.join(
+                candidate_resume_path = os.path.join(
                     run_dir, f"model_run{prev_run_idx}.pt")
-                if os.path.exists(resume_path):
-                    self.logger.info(f"Resuming from: {resume_path}")
-                    prev_total_epochs = self.get_total_epochs_by_index(
-                        run_dir, prev_run_idx)
+                if os.path.exists(candidate_resume_path):
+                    self.logger.info(f"Resuming from: {candidate_resume_path}")
+                    resume_path = candidate_resume_path
                 else:
                     self.logger.info(
                         "No checkpoint found, training from scratch.")
@@ -528,10 +536,10 @@ class WSNPipeline:
                 f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
             self.run(
                 tag=tag, run_dir=run_dir, run_idx=run_idx,
-                resume_path=resume_path, prev_total_epochs=prev_total_epochs
+                resume_path=resume_path
             )
 
-    def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None, prev_total_epochs=0):
+    def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None):
         """
         Run the end-to-end ML workflow: data loading, model training, evaluation, and saving results.
         Args:
@@ -549,6 +557,16 @@ class WSNPipeline:
         split_name = self.get_split_name()
         if run_dir is None or run_idx is None:
             run_dir, run_idx = self.get_run_dir_and_next_index(tag)
+
+        # --- Compute prev_total_epochs  ---
+        prev_total_epochs = 0
+        if resume_path is not None:
+            # Try to extract run index from resume_path
+            m = re.search(r"model_run(\d+)\.pt", os.path.basename(resume_path))
+            if m:
+                run_idx_from_resume = int(m.group(1))
+                prev_total_epochs = self.get_total_epochs_by_index(run_dir, run_idx_from_resume)
+
         # Step 1: Load data if not provided
         if X is None or y is None or class_map is None or L is None:
             loader = FrameDataLoader(
@@ -559,16 +577,13 @@ class WSNPipeline:
             X, y, class_map, L, meta = loader.load()
         num_classes = len(class_map)
         self.logger.info("========= Configuration Summary =========")
-        self.logger.info(
-            f"Model                : {self.config.MODEL_TYPE.upper()}")
-        self.logger.info(
-            f"Channel              : {self.config.INPUT_CHANNEL.upper()}")
+        self.logger.info(f"Model                : {self.config.MODEL_TYPE.upper()}")
+        self.logger.info(f"Channel              : {self.config.INPUT_CHANNEL.upper()}")
         self.logger.info(f"Scenario             : {self.config.SCENARIO}")
         self.logger.info(f"Epochs               : {self.config.EPOCHS}")
         self.logger.info(f"Previous Epochs      : {prev_total_epochs}")
         self.logger.info(f"Classes              : {num_classes}")
-        self.logger.info(
-            f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
+        self.logger.info(f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
 
         # Step 2: Construct run ID and output directory for saving results
         if run_dir is None or run_idx is None:
@@ -578,8 +593,7 @@ class WSNPipeline:
             Xtr, Xte, ytr, yte = train_test_split(
                 X, y, test_size=self.config.TEST_SIZE, random_state=self.config.SEED, stratify=y
             )
-            self.logger.info(
-                f"Seen Split           : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+            self.logger.info(f"Seen Split           : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
         else:
             if self.config.SCENARIO == "I":
                 node_per_frame = []
@@ -591,8 +605,7 @@ class WSNPipeline:
                 node_per_frame = np.array(node_per_frame)
                 mask_te = (node_per_frame == self.config.HELD_OUT_NODE)
                 Xtr, Xte, ytr, yte = X[~mask_te], X[mask_te], y[~mask_te], y[mask_te]
-                self.logger.info(
-                    f"Unseen Split: unseen_node={self.config.HELD_OUT_NODE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                self.logger.info(f"Unseen Split: unseen_node={self.config.HELD_OUT_NODE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
             elif self.config.SCENARIO == "II":
                 env_rx_per_frame = []
                 for p in sorted(Path(self.config.TRAIN_INPUT_DIR).glob("*.npy")):
@@ -604,8 +617,7 @@ class WSNPipeline:
                 mask_te = np.array(
                     [e == self.config.HELD_OUT_ENV for e, _ in env_rx_per_frame])
                 Xtr, Xte, ytr, yte = X[~mask_te], X[mask_te], y[~mask_te], y[mask_te]
-                self.logger.info(
-                    f"Unseen Split: unseen_env={self.config.HELD_OUT_ENV}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                self.logger.info(f"Unseen Split: unseen_env={self.config.HELD_OUT_ENV}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
             else:
                 raise ValueError(f"Invalid SCENARIO: {self.config.SCENARIO}")
         self.logger.info("==========================================\n")
@@ -623,8 +635,7 @@ class WSNPipeline:
             self.config.MODEL_TYPE, X.shape[1], num_classes, L).to(DEVICE)
         # Resume from checkpoint if provided
         if resume_path is not None and os.path.isfile(resume_path):
-            self.logger.info(
-                f"Resuming training from checkpoint: {resume_path}")
+            self.logger.info(f"Resuming training from checkpoint: {resume_path}")
             model.load_state_dict(torch.load(resume_path, map_location=DEVICE))
         crit = nn.CrossEntropyLoss()
         opt = torch.optim.Adam(model.parameters(), lr=self.config.LR)
@@ -658,8 +669,7 @@ class WSNPipeline:
         # Step 8: Visualize and save confusion matrix
         os.makedirs(run_dir, exist_ok=True)
         inv_class_map = {v: k for k, v in class_map.items()}
-        label_names = sorted([inv_class_map[i]
-                             for i in range(len(inv_class_map))])
+        label_names = sorted([inv_class_map[i] for i in range(len(inv_class_map))])
 
         self.plot_confusion_matrix_matplotlib(
             run_idx, run_dir,
@@ -692,8 +702,7 @@ class WSNPipeline:
                 "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
-        self.logger.info(
-            f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        self.logger.info(f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
         """
@@ -724,20 +733,20 @@ def run(X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
     pipeline.run(X, y, class_map, L, meta, resume_path=resume_path)
 
 
-def run_multiple(n_runs=3, resume_latest=True):
+def run_multiple(n_runs=None):
     """
-    Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
+    Run the training pipeline multiple times.
     Args:
-        n_runs (int): Number of runs.
-        resume_latest (bool): If True, resume from the latest checkpoint in each run.
+        n_runs (int, optional): Number of additional runs to execute (appended to existing runs).
+            If None, uses config default.
     """
     pipeline = WSNPipeline()
-    pipeline.run_multiple(n_runs=n_runs, resume_latest=resume_latest)
+    pipeline.run_multiple(n_runs=n_runs)
 
 
 if __name__ == "__main__":
     # For a single run (from scratch or resume), use:
     # run(resume_path="path/to/your_checkpoint.pt")
-    #
+
     # For multiple runs, use:
-    run_multiple(n_runs=25, resume_latest=True)
+    run_multiple()

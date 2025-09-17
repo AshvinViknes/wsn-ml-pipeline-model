@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 ---
+## [0.4.2] - 2025-09-17
+
+### Changed
+- Simplified `run_multiple` API by defaulting to config values for `n_runs` and `resume_latest`.
+- Top-level `run_multiple` now only exposes `n_runs`, with resume behavior always read from config.
+- Centralized `prev_total_epochs` handling inside `run()`, removing calculation and passing from `run_multiple`.
+- `run()` now reads `prev_total_epochs` directly from metadata using `resume_path` and `get_total_epochs_by_index`.
+
+---
 ## [0.4.1] - 2025-09-16
 
 ### Added
