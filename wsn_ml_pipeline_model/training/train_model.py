@@ -436,12 +436,13 @@ class WSNPipeline:
         vmax = np.ceil(cm.max() / 10) * 10
         im.set_clim(0, vmax)
 
+        # Add run_name to the title
         ax.set(
             xticks=np.arange(cm.shape[1]),
             yticks=np.arange(cm.shape[0]),
             xticklabels=labels, yticklabels=labels,
             xlabel='Predicted Label', ylabel='True Label',
-            title=title
+            title=f"{title} | {run_name.upper()}"
         )
 
         plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
@@ -518,8 +519,23 @@ class WSNPipeline:
             resume_latest = self.config.RESUME_TRAINING
         tag = self.get_tag()
         run_dir, next_idx = self.get_run_dir_and_next_index(tag)
+
+        # --- 1. Scan all meta_run*.json and initialize best_global_acc and best_global_run_name
         best_global_acc = -1.0
         best_global_run_name = None
+        for meta_path in sorted(Path(run_dir).glob("meta_run*.json")):
+            try:
+                with open(meta_path, "r") as f:
+                    meta = json.load(f)
+                acc = meta.get("best_acc", None)
+                if acc is not None and acc > best_global_acc:
+                    best_global_acc = acc
+                    # Extract run name from file name
+                    m = re.match(r"meta_(.+)\.json", meta_path.name)
+                    if m:
+                        best_global_run_name = m.group(1)
+            except Exception as e:
+                self.logger.warning(f"Could not read {meta_path}: {e}")
 
         for i in range(n_runs):
             run_idx = next_idx + i
@@ -550,8 +566,12 @@ class WSNPipeline:
             if acc > best_global_acc:
                 best_global_acc = acc
                 best_global_run_name = run_name
+            # 2. Log current global best after each run
+            self.logger.info(
+                f"Current global best acc: {best_global_acc:.4f} (run: {best_global_run_name})"
+            )
 
-            
+        # 3. After all runs, copy PNG using best_global_run_name
         if best_global_run_name is not None:
             src = os.path.join(run_dir, f"ConfMat_{best_global_run_name}.png")
             dst = os.path.join(run_dir, "Final_Confusion_Matrix.png")
@@ -734,7 +754,7 @@ class WSNPipeline:
                 "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
-        self.logger.info(f"Training summary: Run '{run_name}' completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        self.logger.info(f"Training summary: Run '{run_idx}' completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
         return best_acc, run_name
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
