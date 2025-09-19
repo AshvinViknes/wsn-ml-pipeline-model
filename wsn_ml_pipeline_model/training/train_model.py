@@ -542,14 +542,12 @@ class WSNPipeline:
             prev_run_idx = run_idx - 1
             resume_path = None
             if resume_latest and prev_run_idx >= 1:
-                candidate_resume_path = os.path.join(
-                    run_dir, f"model_run{prev_run_idx}.pt")
-                if os.path.exists(candidate_resume_path):
-                    self.logger.info(f"Resuming from: {candidate_resume_path}")
-                    resume_path = candidate_resume_path
+                resume_path = os.path.join(run_dir, f"model_run{prev_run_idx}.pt")
+                if os.path.exists(resume_path):
+                    self.logger.info(f"Resuming from: {resume_path}")
                 else:
-                    self.logger.info(
-                        "No checkpoint found, training from scratch.")
+                    self.logger.info("No checkpoint found, training from scratch.")
+                    resume_path = None
             else:
                 self.logger.info("Training from scratch (no resume).")
 

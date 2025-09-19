@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - Final confusion matrix selection improved by initializing global best accuracy from existing `meta_run*.json` files and updating after each run.
+- Removed redundant candidate_resume_path variable
+- Directly assign resume_path and reset to None if checkpoint not found
 
 ---
 
