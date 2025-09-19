@@ -3,6 +3,7 @@
 # It includes data loading, model definition, training, evaluation, and saving the trained model and
 # performance metrics.
 
+import shutil
 import os
 import re
 import json
@@ -19,7 +20,7 @@ from sklearn.model_selection import train_test_split
 from wsn_ml_pipeline_model.config.logger import LoggerConfigurator
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from wsn_ml_pipeline_model.config.constants import TRAIN_INPUT_DIR, TRAIN_OUTPUT_DIR, SCENARIO, SEEN_SPLIT, HELD_OUT_ENV, \
-    HELD_OUT_NODE, BATCH_SIZE, EPOCHS, LR, SEED, INPUT_CHANNEL, MODEL_TYPE, TEST_SIZE
+    HELD_OUT_NODE, BATCH_SIZE, EPOCHS, LR, SEED, INPUT_CHANNEL, MODEL_TYPE, TEST_SIZE, N_TRAIN_RUNS, RESUME_TRAINING
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -50,6 +51,8 @@ class Config:
     INPUT_CHANNEL: str
     MODEL_TYPE: str
     TEST_SIZE: float
+    RESUME_TRAINING: bool
+    N_TRAIN_RUNS: int
 
 
 def parse_name(fname: str):
@@ -401,15 +404,18 @@ class WSNPipeline:
             INPUT_CHANNEL=INPUT_CHANNEL,
             MODEL_TYPE=MODEL_TYPE,
             TEST_SIZE=TEST_SIZE,
+            RESUME_TRAINING=RESUME_TRAINING,
+            N_TRAIN_RUNS=N_TRAIN_RUNS,
         )
 
         self.logger = LoggerConfigurator.setup_logging() or logger
 
-    def plot_confusion_matrix_matplotlib(self, tag, run_dir, y_true, y_pred,
+    def plot_confusion_matrix_matplotlib(self, run_name, run_dir, y_true, y_pred,
                                          labels, title, normalize=True, cmap=plt.cm.Blues):
-        """Plot confusion matrix using matplotlib and save to file.
+        """
+        Plot confusion matrix using matplotlib and save to file.
         Args:
-            tag: identifier for the run, used in filename.
+            run_name: identifier used in filename, e.g., 'single' or 'run{idx}'.
             run_dir: directory to save the plot.
             y_true: true labels.
             y_pred: predicted labels.
@@ -430,12 +436,13 @@ class WSNPipeline:
         vmax = np.ceil(cm.max() / 10) * 10
         im.set_clim(0, vmax)
 
+        # Add run_name to the title
         ax.set(
             xticks=np.arange(cm.shape[1]),
             yticks=np.arange(cm.shape[0]),
             xticklabels=labels, yticklabels=labels,
             xlabel='Predicted Label', ylabel='True Label',
-            title=title
+            title=f"{title} | {run_name.upper()}"
         )
 
         plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
@@ -449,12 +456,10 @@ class WSNPipeline:
                         color="white" if cm[i, j] > thresh else "black")
         fig.tight_layout()
 
-        filename = f"ConfMat_{tag}"
-        save_path = os.path.abspath(
-            f"{run_dir}/{filename.replace(' ', '_')}.png")
-        self.logger.info(f"Saving confusion matrix to: {save_path}")
+        filename = f"ConfMat_{run_name}"
+        save_path = os.path.join(run_dir, f"{filename.replace(' ', '_')}.png")
+        self.logger.info(f"Saving confusion matrix to: {os.path.abspath(save_path)}")
         plt.savefig(save_path)
-        plt.savefig(f"{run_dir}/{filename.replace(' ', '_')}.png")
         plt.close()
 
     def get_latest_checkpoint(self, result_dir):
@@ -481,42 +486,103 @@ class WSNPipeline:
         next_idx = max(indices) + 1 if indices else 1
         return run_dir, next_idx
 
-    def run_multiple(self, n_runs=3, resume_latest=True):
+    def get_split_name(self):
+        """Helper to build the split name string."""
+        if self.config.SEEN_SPLIT:
+            return f"seen({self.config.TEST_SIZE})"
+        else:
+            return f"unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
+
+    def get_tag(self, tag=None):
+        """
+        Helper to build the tag string for a run.
+        If tag is provided, returns it; otherwise, constructs from config and split name.
+        The tag now also includes the epoch count as '_epoch({self.config.EPOCHS})' at the end.
+        """
+        if tag is not None:
+            return tag
+        split_name = self.get_split_name()
+        return f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}_epoch({self.config.EPOCHS})"
+
+    def run_multiple(self, n_runs=None, resume_latest=None):
         """
         Run multiple training sessions with different random seeds.
         Args:
-            n_runs (int): Number of runs to execute.
-            resume_latest (bool): Whether to resume from the latest checkpoint if available.
+            n_runs (int, optional): Number of additional runs to execute (appended to existing runs).
+                If None, uses self.config.N_TRAIN_RUNS.
+            resume_latest (bool, optional): If True, resume from the latest checkpoint in each run.
+                If None, uses self.config.RESUME_TRAINING.
         """
-        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-        tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        if n_runs is None:
+            n_runs = self.config.N_TRAIN_RUNS
+        if resume_latest is None:
+            resume_latest = self.config.RESUME_TRAINING
+        tag = self.get_tag()
         run_dir, next_idx = self.get_run_dir_and_next_index(tag)
+
+        # --- 1. Scan all meta_run*.json and initialize best_global_acc and best_global_run_name
+        best_global_acc = -1.0
+        best_global_run_name = None
+        for meta_path in sorted(Path(run_dir).glob("meta_run*.json")):
+            try:
+                with open(meta_path, "r") as f:
+                    meta = json.load(f)
+                acc = meta.get("best_acc", None)
+                if acc is not None and acc > best_global_acc:
+                    best_global_acc = acc
+                    # Extract run name from file name
+                    m = re.match(r"meta_(.+)\.json", meta_path.name)
+                    if m:
+                        best_global_run_name = m.group(1)
+            except Exception as e:
+                self.logger.warning(f"Could not read {meta_path}: {e}")
+
         for i in range(n_runs):
             run_idx = next_idx + i
             prev_run_idx = run_idx - 1
             resume_path = None
-            prev_total_epochs = 0
             if resume_latest and prev_run_idx >= 1:
-                resume_path = os.path.join(
-                    run_dir, f"model_run{prev_run_idx}.pt")
+                resume_path = os.path.join(run_dir, f"model_run{prev_run_idx}.pt")
                 if os.path.exists(resume_path):
                     self.logger.info(f"Resuming from: {resume_path}")
-                    prev_total_epochs = self.get_total_epochs_by_index(
-                        run_dir, prev_run_idx)
                 else:
-                    self.logger.info(
-                        "No checkpoint found, training from scratch.")
+                    self.logger.info("No checkpoint found, training from scratch.")
+                    resume_path = None
             else:
                 self.logger.info("Training from scratch (no resume).")
-            self.logger.info(
-                f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
-            self.run(
+
+            if not resume_latest and n_runs == 1:
+                # Single run from scratch, skip cumulative run logging
+                self.logger.info("=== Single training run ========")
+            else:
+                self.logger.info(
+                    f"=== Training run {run_idx}/{next_idx + n_runs - 1} ===")
+            acc, run_name = self.run(
                 tag=tag, run_dir=run_dir, run_idx=run_idx,
-                resume_path=resume_path, prev_total_epochs=prev_total_epochs
+                resume_path=resume_path
+            )
+            if acc > best_global_acc:
+                best_global_acc = acc
+                best_global_run_name = run_name
+            # 2. Log current global best after each run
+            self.logger.info(
+                f"Current global best acc: {best_global_acc:.4f} (run: {best_global_run_name})"
             )
 
-    def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None, prev_total_epochs=0):
+        # 3. After all runs, copy PNG using best_global_run_name
+        if best_global_run_name is not None:
+            src = os.path.join(run_dir, f"ConfMat_{best_global_run_name}.png")
+            dst = os.path.join(run_dir, "Final_Confusion_Matrix.png")
+            try:
+                shutil.copyfile(src, dst)
+                self.logger.info(
+                    f"Saved global best confusion matrix ({best_global_acc:.4f}) to: {os.path.abspath(dst)}"
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to save global best confusion matrix: {e}")
+
+
+    def run(self, X=None, y=None, class_map=None, L=None, meta=None, tag=None, run_dir=None, run_idx=None, resume_path=None):
         """
         Run the end-to-end ML workflow: data loading, model training, evaluation, and saving results.
         Args:
@@ -530,12 +596,20 @@ class WSNPipeline:
             run_idx (int): Optional run index for naming.
             resume_path (str): Optional path to a .pt checkpoint to resume training.
         """
-        split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-            f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-        if tag is None:
-            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
+        tag = self.get_tag(tag)
+        split_name = self.get_split_name()
         if run_dir is None or run_idx is None:
             run_dir, run_idx = self.get_run_dir_and_next_index(tag)
+
+        # --- Compute prev_total_epochs  ---
+        prev_total_epochs = 0
+        if resume_path is not None:
+            # Try to extract run index from resume_path
+            m = re.search(r"model_run(\d+)\.pt", os.path.basename(resume_path))
+            if m:
+                run_idx_from_resume = int(m.group(1))
+                prev_total_epochs = self.get_total_epochs_by_index(run_dir, run_idx_from_resume)
+
         # Step 1: Load data if not provided
         if X is None or y is None or class_map is None or L is None:
             loader = FrameDataLoader(
@@ -546,22 +620,16 @@ class WSNPipeline:
             X, y, class_map, L, meta = loader.load()
         num_classes = len(class_map)
         self.logger.info("========= Configuration Summary =========")
-        self.logger.info(
-            f"Model                : {self.config.MODEL_TYPE.upper()}")
-        self.logger.info(
-            f"Channel              : {self.config.INPUT_CHANNEL.upper()}")
+        self.logger.info(f"Model                : {self.config.MODEL_TYPE.upper()}")
+        self.logger.info(f"Channel              : {self.config.INPUT_CHANNEL.upper()}")
         self.logger.info(f"Scenario             : {self.config.SCENARIO}")
         self.logger.info(f"Epochs               : {self.config.EPOCHS}")
         self.logger.info(f"Previous Epochs      : {prev_total_epochs}")
         self.logger.info(f"Classes              : {num_classes}")
-        self.logger.info(
-            f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
+        self.logger.info(f"Input Shape          : X={X.shape}, y={y.shape}, L={L}")
+
 
         # Step 2: Construct run ID and output directory for saving results
-        if tag is None:
-            split_name = f"Seen({self.config.TEST_SIZE})" if self.config.SEEN_SPLIT else \
-                f"Unseen({self.config.HELD_OUT_ENV if self.config.SCENARIO == 'II' else self.config.HELD_OUT_NODE})"
-            tag = f"{self.config.SCENARIO}_{split_name}_{self.config.MODEL_TYPE}_{self.config.INPUT_CHANNEL}"
         if run_dir is None or run_idx is None:
             run_dir, run_idx = self.get_run_dir_and_next_index(tag)
         # Step 3: Create training and testing splits
@@ -569,8 +637,7 @@ class WSNPipeline:
             Xtr, Xte, ytr, yte = train_test_split(
                 X, y, test_size=self.config.TEST_SIZE, random_state=self.config.SEED, stratify=y
             )
-            self.logger.info(
-                f"Seen Split            : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+            self.logger.info(f"Seen Split           : test_size={self.config.TEST_SIZE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
         else:
             if self.config.SCENARIO == "I":
                 node_per_frame = []
@@ -582,8 +649,7 @@ class WSNPipeline:
                 node_per_frame = np.array(node_per_frame)
                 mask_te = (node_per_frame == self.config.HELD_OUT_NODE)
                 Xtr, Xte, ytr, yte = X[~mask_te], X[mask_te], y[~mask_te], y[mask_te]
-                self.logger.info(
-                    f"Unseen Split: unseen_node={self.config.HELD_OUT_NODE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                self.logger.info(f"Unseen Split: unseen_node={self.config.HELD_OUT_NODE}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
             elif self.config.SCENARIO == "II":
                 env_rx_per_frame = []
                 for p in sorted(Path(self.config.TRAIN_INPUT_DIR).glob("*.npy")):
@@ -595,8 +661,7 @@ class WSNPipeline:
                 mask_te = np.array(
                     [e == self.config.HELD_OUT_ENV for e, _ in env_rx_per_frame])
                 Xtr, Xte, ytr, yte = X[~mask_te], X[mask_te], y[~mask_te], y[mask_te]
-                self.logger.info(
-                    f"Unseen Split: unseen_env={self.config.HELD_OUT_ENV}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
+                self.logger.info(f"Unseen Split: unseen_env={self.config.HELD_OUT_ENV}, train={Xtr.shape[0]}, test={Xte.shape[0]}")
             else:
                 raise ValueError(f"Invalid SCENARIO: {self.config.SCENARIO}")
         self.logger.info("==========================================\n")
@@ -614,8 +679,7 @@ class WSNPipeline:
             self.config.MODEL_TYPE, X.shape[1], num_classes, L).to(DEVICE)
         # Resume from checkpoint if provided
         if resume_path is not None and os.path.isfile(resume_path):
-            self.logger.info(
-                f"Resuming training from checkpoint: {resume_path}")
+            self.logger.info(f"Resuming training from checkpoint: {resume_path}")
             model.load_state_dict(torch.load(resume_path, map_location=DEVICE))
         crit = nn.CrossEntropyLoss()
         opt = torch.optim.Adam(model.parameters(), lr=self.config.LR)
@@ -649,37 +713,47 @@ class WSNPipeline:
         # Step 8: Visualize and save confusion matrix
         os.makedirs(run_dir, exist_ok=True)
         inv_class_map = {v: k for k, v in class_map.items()}
-        label_names = sorted([inv_class_map[i]
-                             for i in range(len(inv_class_map))])
+        label_names = sorted([inv_class_map[i] for i in range(len(inv_class_map))])
+
+        # Set run_name once, use for all outputs
+        if not self.config.RESUME_TRAINING and self.config.N_TRAIN_RUNS == 1:
+            run_name = "single"
+        else:
+            run_name = f"run{run_idx}"
 
         self.plot_confusion_matrix_matplotlib(
-            tag, run_dir,
+            run_name, run_dir,
             y_true, y_pred, label_names,
             f"{self.config.MODEL_TYPE.upper()} {self.config.INPUT_CHANNEL.upper()}"
         )
 
-        # Step 9: Save model and metadata
-        torch.save(model.state_dict(), f"{run_dir}/model_run{run_idx}.pt")
+        # Step 9: Save model and metadata with updated file naming logic
+        torch.save(model.state_dict(), f"{run_dir}/model_{run_name}.pt")
         sorted_class_map = {k: class_map[k] for k in sorted(class_map)}
 
         total_epochs = prev_total_epochs + self.config.EPOCHS
 
-        with open(f"{run_dir}/meta_run{run_idx}.json", "w") as f:
+        with open(f"{run_dir}/meta_{run_name}.json", "w") as f:
             json.dump({
                 "scenario": self.config.SCENARIO,
                 "class_map": sorted_class_map,
                 "model": self.config.MODEL_TYPE,
                 "channel": self.config.INPUT_CHANNEL,
                 "epochs": self.config.EPOCHS,
+                "total_epochs": total_epochs,
                 "L": L,
                 "seen_split": split_name,
+                "train": int(Xtr.shape[0]),
+                "test": int(Xte.shape[0]),
                 "X_shape": X.shape,
                 "y_len": int(y.shape[0]),
-                "total_epochs": total_epochs
+                "best_acc": best_acc,
+                "classification_report": classification_report(y_true, y_pred),
+                "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
-        self.logger.info(
-            f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        self.logger.info(f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        return best_acc, run_name
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
         """
@@ -710,20 +784,21 @@ def run(X=None, y=None, class_map=None, L=None, meta=None, resume_path=None):
     pipeline.run(X, y, class_map, L, meta, resume_path=resume_path)
 
 
-def run_multiple(n_runs=3, resume_latest=True):
+def run_multiple(n_runs=None):
     """
-    Run the training pipeline multiple times, optionally resuming from the latest checkpoint each time.
+    Run the training pipeline multiple times.
     Args:
-        n_runs (int): Number of runs.
-        resume_latest (bool): If True, resume from the latest checkpoint in each run.
+        n_runs (int, optional): Number of additional runs to execute (appended to existing runs).
+            If None, uses config default.
     """
     pipeline = WSNPipeline()
-    pipeline.run_multiple(n_runs=n_runs, resume_latest=resume_latest)
+    pipeline.run_multiple(n_runs=n_runs)
 
 
 if __name__ == "__main__":
     # For a single run (from scratch or resume), use:
     # run(resume_path="path/to/your_checkpoint.pt")
-    #
+
     # For multiple runs, use:
-    run_multiple(n_runs=25, resume_latest=True)
+    run_multiple() # use N_TRAIN_RUNS from constants.py as default n_runs
+    # run_multiple(5) # set n_runs = 5

@@ -48,5 +48,4 @@ HELD_OUT_NODE    = "C"    # for Scenario I Unseen
 
 # -------------------- Workflow/Experiment Control --------------------
 RESUME_TRAINING = True        # If True, resume training from latest checkpoint
-PREPROCESSING_ACTIVE = False    # If True, run preprocessing step in workflow
 N_TRAIN_RUNS = 10              # Number of times to repeat model training

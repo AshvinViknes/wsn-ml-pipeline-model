@@ -95,7 +95,7 @@ pip install virtualenv
 
 ## Usage
 
-1. **Prepare your raw sensor data** in `data/raw/` as CSV files.
+1. **Prepare your raw sensor data** in `data/raw/` as `.txt` files.
 
 2. **Configure pipeline parameters** in `config/constants.py`.
 
@@ -139,10 +139,37 @@ See `requirements.txt`:
 
 - numpy
 - pandas
-- tensorflow
 - scikit-learn
 - matplotlib
-- torch
+- torch (only the light CPU version is sufficient)
+
+---
+
+## How to Use constants.py
+
+All settings for training are in wsn_ml_pipeline_model/config/constants.py.
+Edit these values before running the workflow to change how the model trains.
+
+- Main options:
+	- Data paths:
+		TRAIN_INPUT_DIR: where your .npy data lives
+		TRAIN_OUTPUT_DIR: where results (models, logs, confusion matrices) are saved
+	- Experiment setup:
+		SCENARIO = "I" → classify environment
+		SCENARIO = "II" → classify receiving node
+		SEEN_SPLIT = True → random train/test split
+		SEEN_SPLIT = False → hold out a node (HELD_OUT_NODE) or environment (HELD_OUT_ENV)
+	- Training settings:
+		BATCH_SIZE, EPOCHS, LR, SEED
+		INPUT_CHANNEL = "rssi" | "lqi" | "both"
+		MODEL_TYPE = "cnn" | "resnet"
+		N_TRAIN_RUNS: how many independent runs to perform
+		RESUME_TRAINING = True → continue from the last checkpoint
+- Outputs: After training, you will find:
+	- model_runX.pt → trained model
+	- meta_runX.json → training metadata
+	- ConfMat_runX.png → confusion matrix for each run
+	- Final_Confusion_Matrix.png → best confusion matrix across runs
 
 ---
 
