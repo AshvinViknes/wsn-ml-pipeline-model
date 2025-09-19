@@ -39,12 +39,14 @@ Follow these steps to set up and run the pipeline from scratch.
 	python -m wsn_ml_pipeline_model.workflow.workflow
 	```
 - After running, you’ll find results in the output directory defined in WSN_ML_PIPELINE_MODEL/CONFIG/CONSTANTS.PY. Default directories:
-	- RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
+	```diff
+	+ RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
 	- CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
 	- PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
-	- LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
-	- TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data" # Directory containing .npy files
-	- TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result"  # save plot and log
+	+ LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
+	- TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data"
+	+ TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result" 
+	```
 
 # wsn-ml-pipeline-model
 IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw sensor data into frames ready for machine learning. It removes outliers, scales data, exports in CSV/NumPy, and includes model training components. Modular and extensible for end-to-end IoT ML workflows.
