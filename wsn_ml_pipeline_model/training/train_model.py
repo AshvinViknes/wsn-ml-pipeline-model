@@ -752,7 +752,7 @@ class WSNPipeline:
                 "confusion_matrix": confusion_matrix(y_true, y_pred).tolist()
             }, f, indent=2)
 
-        self.logger.info(f"Training summary: Run '{run_idx}' completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
+        self.logger.info(f"Training summary: Run {run_idx} completed, ran {self.config.EPOCHS} epochs, total {total_epochs} epochs for this model.")
         return best_acc, run_name
 
     def get_total_epochs_by_index(self, run_dir, prev_run_idx):
