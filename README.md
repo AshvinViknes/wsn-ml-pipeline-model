@@ -7,6 +7,7 @@ Follow these steps to set up and run the pipeline from scratch.
 	git clone <repo-url>
 	```
 - Install prerequisites:
+
 	- Check Python version (3.9+ recommended; install if not already installed):
 		```sh
 		python3 --version
@@ -38,15 +39,16 @@ Follow these steps to set up and run the pipeline from scratch.
 	```sh
 	python -m wsn_ml_pipeline_model.workflow.workflow
 	```
-- After running, you’ll find results in the output directory defined in WSN_ML_PIPELINE_MODEL/CONFIG/CONSTANTS.PY. Default directories:
+- After running, you’ll find results in the output directory defined in wsn_ml_pipeline_model/config/constants.py; Default directories:
 	```diff
 	+ RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
-	- CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
-	- PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
+	+ CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
+	+ PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
 	+ LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
-	- TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data"
+	+ TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data"
 	+ TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result" 
 	```
+---
 
 # wsn-ml-pipeline-model
 IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw sensor data into frames ready for machine learning. It removes outliers, scales data, exports in CSV/NumPy, and includes model training components. Modular and extensible for end-to-end IoT ML workflows.
@@ -99,51 +101,9 @@ wsn_ml_pipeline_model/
 ```
 
 ---
-## Prerequisites
 
-- **Python 3.8+** (recommended)
-- **pip** (Python package installer)
-- **virtualenv** (optional, for isolated environments)
 
-To check your Python version:
-```sh
-python3 --version
-```
-
-To install pip (if not already installed):
-```sh
-python3 -m ensurepip --upgrade
-```
-
-To install virtualenv (optional but recommended):
-```sh
-pip install virtualenv
-```
-
----
-
-## Installation
-
-1. **Clone the repository:**
-   ```sh
-   git clone <repo-url>
-   cd wsn_ml_pipeline_model
-   ```
-
-2. **Create a virtual env:**
-   ```sh
-    python3 -m venv venv
-    source venv/bin/activate
-   ```
-
-3. **Install dependencies:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-
----
-
-## Usage
+##  Advanced Usage
 
 1. **Prepare your raw sensor data** in `data/raw/` as `.txt` files.
 
