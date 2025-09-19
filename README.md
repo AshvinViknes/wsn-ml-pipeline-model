@@ -1,3 +1,35 @@
+# Quick Start Guide
+
+Follow these steps to set up and run the pipeline from scratch.
+
+- Clone the repository:
+	git clone <repo-url>
+- Install prerequisites:
+	- Check Python version (3.9+ recommended; install if not already installed):
+		python3 --version
+	- Install pip (if not already installed):
+		python3 -m ensurepip --upgrade
+	- Install virtualenv:
+		pip install virtualenv
+- Open a shell at the project root:
+	cd path/to/wsn-ml-pipeline-model
+- Create and activate a virtual environment:
+	python3 -m venv .venv
+	source .venv/bin/activate   # Linux/Mac
+	.venv\Scripts\activate      # Windows (PowerShell)
+	python -m pip install -U pip
+- Install requirements:
+	python -m pip install -r requirements.txt
+- Run the full workflow (this includes preprocessing + training):
+	python -m wsn_ml_pipeline_model.workflow.workflow
+- After running, you’ll find results in the output directory defined in WSN_ML_PIPELINE_MODEL/CONFIG/CONSTANTS.PY. Default directories:
+	- RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
+	- CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
+	- PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
+	- LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
+	- TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data" # Directory containing .npy files
+	- TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result"  # save plot and log
+
 # wsn-ml-pipeline-model
 IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw sensor data into frames ready for machine learning. It removes outliers, scales data, exports in CSV/NumPy, and includes model training components. Modular and extensible for end-to-end IoT ML workflows.
 
