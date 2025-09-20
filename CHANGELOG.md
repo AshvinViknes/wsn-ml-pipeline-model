@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.5.0] - 2025-09-20
+
+### Added
+* Introduced `RunHelper` class to centralize helpers for tagging, run directories, checkpoints, epoch tracking, and confusion matrix plotting.
+* New `training/frame_loader.py` for dataset handling (`FramesDataset`, parsing, loading).
+* Dedicated `training/models.py` with `ModelFactory` for model selection.
+* `training/trainer.py` encapsulates train/test loop logic.
+
+### Changed
+
+* `WSNPipeline` in `training/pipeline.py` simplified: now delegates helper logic to `RunHelper`.
+* Clearer project structure: split responsibilities across `helper.py`, `models.py`, `trainer.py`, `frame_loader.py`.
+* `pipeline.py` now acts as a lightweight entry point.
+
+---
+
 ## [0.4.4] - 2025-9-19
 
 ### Added

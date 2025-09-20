@@ -3,8 +3,8 @@
 # including data preprocessing and model training, with options to
 # resume training from checkpoints and control preprocessing steps.
 
+from wsn_ml_pipeline_model.training.pipeline import WSNPipeline
 from wsn_ml_pipeline_model.config.logger import LoggerConfigurator
-from wsn_ml_pipeline_model.training.train_model import WSNPipeline
 from wsn_ml_pipeline_model.preprocess.preprocessing_workflow import PreprocessingWorkflow
 class MLWorkflow:
     """
@@ -20,23 +20,13 @@ class MLWorkflow:
         self.trainer = WSNPipeline(logger=self.logger)
         self.preprocessor = PreprocessingWorkflow(logger=self.logger)
     
-    def run_pipeline(self, X=None, y=None, class_map=None, 
-            L=None, meta=None):
+    def run_pipeline(self):
         """
             Run the full ML pipeline: preprocessing followed by training.
             The training behavior (whether to resume and how many runs) is controlled 
             by the constants in `config/constants.py` (RESUME_TRAINING, N_TRAIN_RUNS).
-            X, y, class_map, L, meta are optional parameters for training data and metadata.
 
             Note: The preprocessing step always runs before training.
-            
-            Parameters:
-                - X: Feature data (optional, can be loaded in preprocessing)
-                - y: Labels (optional, can be loaded in preprocessing)
-                - class_map: Class mapping (optional, can be loaded in preprocessing)
-                - L: Additional data (optional, can be loaded in preprocessing)
-                - meta: Metadata (optional, can be loaded in preprocessing)
-            
         """
         
         self.logger.info("Starting end-to-end ML pipeline")
