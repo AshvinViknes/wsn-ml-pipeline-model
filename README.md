@@ -72,32 +72,37 @@ IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw
 
 ```
 wsn_ml_pipeline_model/
-├── config/                # Configuration, constants, and logging setup
+├── config/                		# Configuration, constants, and logging setup
 │   ├── constants.py
 │   └── logger.py
-├── data/                  # Data storage
-│   ├── raw/               # Raw sensor data
-│   ├── cleaned/           # Cleaned data output
-│   └── preprocessed_data/ # Preprocessed/segmented data
-├── data_cleaner/          # Data cleaning
+├── data/                  		# Data storage
+│   ├── raw/               		# Raw sensor data
+│   ├── cleaned/           		# Cleaned data output
+│  	└── preprocessed_data/ 		# Preprocessed/segmented data
+├── data_cleaner/          		# Data cleaning
 │   └── clean_data.py      
-├── logs/                  # Log files
+├── logs/                  		# Log files
 │   └── app.log
-├── preprocess/            # preprocessing scripts
+├── preprocess/            		# preprocessing scripts
 │   ├── preprocessing.py
 │   └── preprocessing_workflow.py
-├── training/              # Model training scripts
-│   ├── train_result/      # Output directory for training runs (plots, reports, models)
-│   └── train_model.py     # Entry point for training models
-├── workflow/              # End-to-end ML workflow orchestration
-│   └── workflow.py        # Entry point for full pipeline (preprocessing + training)
-├── utils/                 # Utility functions (e.g., saving data)
+├──training/                  	# Core training package
+│   ├── train_result/          	# Generated outputs: checkpoints, plots, reports, metadata
+│	├── config.py              	# Training configuration Class
+│	├── frame_loader.py        	# Dataset utilities: load frames, parse metadata, Dataset class
+│	├── helper.py              	# Helper utilities (run dirs, tagging, checkpoints, plotting)
+│	├── models.py              	# Model definitions + ModelFactory
+│	├── pipeline.py            	# Main WSNPipeline: orchestrates end-to-end training & eval
+│	└── trainer.py             	# Trainer class: encapsulates train/test loop logic
+├── workflow/              		# End-to-end ML workflow orchestration
+│   └── workflow.py        		# Entry point for full pipeline (preprocessing + training)
+├── utils/                 		# Utility functions (e.g., saving data)
 │   └── save_utils.py
-├── requirements.txt       # Python dependencies
+├── requirements.txt       		# Python dependencies
 ├── .gitignore
 ├── CHANGELOG.md           
-├── LICENSE                # License (GPL v3)
-└── README.md              # This file
+├── LICENSE                		# License (GPL v3)
+└── README.md              		# This file
 ```
 
 ---
@@ -123,7 +128,7 @@ wsn_ml_pipeline_model/
 
 5. **(Advanced) Train the ML model using preprocessed data:**
    ```sh
-   python -m wsn_ml_pipeline_model.training.train_model
+   python -m wsn_ml_pipeline_model.training.pipeline
    ```
    - This will train a CNN or ResNet model using existing preprocessed data, and save results (plots, reports, model weights) to `training/train_result/`.
 
@@ -132,14 +137,20 @@ wsn_ml_pipeline_model/
 
 ## Modules Overview
 
-- `config/constants.py`: Pipeline configuration and constants.
-- `config/logger.py`: Logging setup.
-- `data_cleaner/clean_data.py`: Data cleaning logic.
-- `preprocess/preprocessing.py`: Preprocessing functions (normalization, segmentation).
-- `preprocess/preprocessing_workflow.py`: Orchestrates the full preprocessing pipeline.
-- `utils/save_utils.py`: Utility functions for saving data.
-- `training/train_model.py`: Train and evaluate ML models using the preprocessed data.
-- `workflow/workflow.py`: Orchestrates the end-to-end ML workflow (preprocessing + training).
+- `config/constants.py`					:  Pipeline configuration and constants.
+- `config/logger.py`					:  Logging setup.
+- `data_cleaner/clean_data.py`			:  Data cleaning logic.
+- `preprocess/preprocessing.py`			:  Preprocessing functions (normalization, segmentation).
+- `preprocess/preprocessing_workflow.py`:  Orchestrates the full preprocessing pipeline.
+- `utils/save_utils.py`					:  Utility functions for saving data.
+- `training/train_model.py`				:  Train and evaluate ML models using the preprocessed data.
+- `training/frame_loader.py` 			:  Frame loading, parsing, and dataset class (`FramesDataset`).
+- `training/helper.py` 					:  Utilities for run directories, tags, checkpoints, and plotting (confusion matrices).
+- `training/models.py` 					:  Model definitions and `ModelFactory`.
+- `training/pipeline.py` 				:  High-level pipeline (`WSNPipeline`), orchestrates training, evaluation, saving.
+- `training/trainer.py` 				:  Encapsulates training/testing loop logic.
+- `training/train_result/` 				:  Output directory for training artifacts (models, reports, plots, metadata).
+- `workflow/workflow.py`				:  Orchestrates the end-to-end ML workflow (preprocessing + training).
 
 ---
 

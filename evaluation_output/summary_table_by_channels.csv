@@ -1,0 +1,7 @@
+,RSSI(S),BOTH(S),RSSI(U),BOTH(U),RSSI(I),BOTH(I),RSSI(II),BOTH(II)
+Average Train Accuracy,79.94%,77.77%,82.28%,80.89%,82.69%,80.33%,81.23%,80.22%
+Average Test Accuracy,74.11%,70.69%,35.75%,34.23%,44.99%,42.44%,42.37%,40.91%
+Min Train Accuracy,49.54%,48.00%,53.12%,51.78%,49.35%,47.61%,54.44%,53.30%
+Min Test Accuracy,52.15%,44.60%,17.81%,16.57%,26.44%,20.38%,23.50%,23.38%
+Variance in Train Accuracy,0.79%,0.77%,0.68%,0.75%,1.02%,1.05%,0.49%,0.56%
+Variance in Test Accuracy,0.56%,0.65%,0.57%,0.64%,0.44%,0.63%,0.65%,0.64%
