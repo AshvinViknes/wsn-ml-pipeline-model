@@ -7,7 +7,8 @@ They provide both **visualizations** (accuracy curves) and **summary tables** (m
 
 ### Plots
 
-- `acc_curves_splits_I.png`Accuracy curves (Train/Test) for all combinations under **Scenario I**, grouped by split.Helps visualize how models converge over epochs for different seen/unseen configurations.
+- `acc_curves_splits_I.png`
+  Test accuracy curves for all combinations under **Scenario I**, grouped by split. Helps visualize how models converge over epochs for different seen/unseen configurations.
 - `acc_curves_splits_II.png`
   Same as above, but for **Scenario II**.
 
