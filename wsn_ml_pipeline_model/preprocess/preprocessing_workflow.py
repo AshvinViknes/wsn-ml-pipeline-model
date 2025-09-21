@@ -62,7 +62,8 @@ class PreprocessingWorkflow:
         """
         base = os.path.basename(raw_file)
         name, _ = os.path.splitext(base)
-        cleaned_path = os.path.join(cleaned_dir, f"{name}_cleaned.csv")
+        env = os.path.basename(os.path.dirname(raw_file))
+        cleaned_path = os.path.join(cleaned_dir, env, f"{name}.csv")
 
         self.logger.info(f"START: Processing file '{raw_file}'")
 
@@ -98,8 +99,8 @@ class PreprocessingWorkflow:
 
         # Step 4: Save frames
         try:
-            csv_save_dir = f'{PREPROCESSED_DATA_DIR}{name}'
-            npy_save_path = f'{PREPROCESSED_DATA_DIR}{name}.npy'
+            csv_save_dir = os.path.join(PREPROCESSED_DATA_DIR, f"normalised/{env}", name)
+            npy_save_path = os.path.join(PREPROCESSED_DATA_DIR, f"frames/{env}", f"{name}.npy")
 
             self.logger.debug(f"Step 4: Saving frames as CSV in '{csv_save_dir}' and as NumPy array to '{npy_save_path}'")
             self.frame_saver.save_frames(frames, csv_save_dir, npy_save_path)
@@ -108,13 +109,11 @@ class PreprocessingWorkflow:
             self.logger.error(f"Step 4: Failed to save frames for '{raw_file}'\n{traceback.format_exc()}")
             raise
 
-        self.logger.info(f"Generated {frames.shape[0]} frames with shape {frames.shape[1:]} for '{raw_file}'")
-
-        frames = frames.reshape(-1, frame_size, 3)
+        frames = frames.reshape(-1, frame_size, 2)
         self.logger.debug(f"Final framed data shape: {frames.shape}")
         if frames.size == 0:
             self.logger.warning(f"No valid frames generated for '{raw_file}'")
-            return np.empty((0, frame_size, 3))
+            return np.empty((0, frame_size, 2))
 
         self.logger.info(f"END: Processing file '{raw_file}' completed successfully")
         self.logger.info("-----------------------------------------------------------------------")
@@ -150,12 +149,13 @@ class PreprocessingWorkflow:
         and saves the cleaned and framed data.
         """
         self.logger.info("Initiated preprocessing workflow........")
-        raw_files = glob.glob(f"{RAW_DATA_DIR}/*.txt")
+        raw_files = []
+        raw_files += glob.glob(os.path.join(RAW_DATA_DIR, "*", "*.txt"))
 
         if not raw_files:
-            self.logger.error(f"No .txt files found in folder: '{RAW_DATA_DIR}'")
+            self.logger.error(f"No .txt or .csv files found under: '{RAW_DATA_DIR}/*'")
             sys.exit(1)
-
+            
         self.logger.info(f"Found {len(raw_files)} raw files to process..")
 
         framed_data_list = self.batch_process_files(raw_files, CLEANED_DATA_DIR)

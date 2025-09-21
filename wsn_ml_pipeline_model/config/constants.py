@@ -7,8 +7,7 @@ import torch
 import random
 import numpy as np
 # -------------------- Data Processing --------------------
-TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S,%f"
-DATA_COLUMNS = ['timestamp', 'rssi', 'lqi']
+DATA_COLUMNS = ['rssi', 'lqi']
 
 Q1_PERCENTILE = 0.25
 Q3_PERCENTILE = 0.75
@@ -19,7 +18,7 @@ OVERLAP = 0.5
 # -------------------- Data Paths --------------------
 RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
 CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
-PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
+PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data'
 SAVE_FRAME_CSV = False  # or True 
 
 # -------------------- Logging --------------------
@@ -31,8 +30,8 @@ LOG_LEVEL = 'INFO'
 
 # -------------------- Training  --------------------
 # loading data
-TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data" # Directory containing .npy files
-TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result"  # save plot and log
+TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data/frames" # Directory containing .npy files
+TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result"         # save plot and log
 
 # Filename format: frames_<Tx>_<Rx>_<env>.npy
 NAME_RE = re.compile(
