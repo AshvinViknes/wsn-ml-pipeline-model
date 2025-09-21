@@ -51,7 +51,24 @@ Follow these steps to set up and run the pipeline from scratch.
 ---
 
 # wsn-ml-pipeline-model
-IoT Data Processing Pipeline automates cleaning, normalizing, and segmenting raw sensor data into frames ready for machine learning. It removes outliers, scales data, exports in CSV/NumPy, and includes model training components. Modular and extensible for end-to-end IoT ML workflows.
+
+WSN-ML-Pipeline-Model is an end-to-end machine learning pipeline for wireless sensor networks (WSNs).
+
+It provides a reproducible workflow that:
+
+- Preprocesses raw IoT sensor data (cleans, normalizes, segments into frames).
+
+- Builds datasets with rich metadata (Tx/Rx nodes, environment labels, frame lengths).
+
+- Trains deep learning models (1D-CNN and ResNet1D) for classification tasks.
+
+- Supports flexible scenarios: environment classification (Scenario I) or receiving-node classification (Scenario II).
+
+- Handles multiple training runs with checkpointing, resumable training, and best-model selection.
+
+- Generates evaluation outputs including confusion matrices, accuracy reports, and metadata logs.
+
+It's designed to be modular and extensible, the pipeline integrates preprocessing, training, and ensembling under a single, configurable workflow (workflow.py).
 
 ---
 
