@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 
 ---
+## [0.6.0] - 2025-09-21
+
+### Added
+* `preprocess/preprocessing_workflow.py` now scans env subfolders (`*/*.txt`, `*/*.csv`) and preserves `<env>/<node>` in outputs.
+
+### Changed
+
+* **Layout:**
+
+  * raw → `data/raw/<env>/*.{txt,csv}`
+  * cleaned → `data/cleaned/<env>/<node>.csv`
+  * frames → `data/preprocessed_data/frames/<env>/<node>.npy`
+* `DataCleaner`: outputs **2 cols** (`rssi,lqi`); passes through valid CSVs.
+* `preprocessing_workflow`: dynamic reshape by feature count; saves under `<env>/<node>`.
+
+### Breaking
+
+* Dropped support for `frames_<Tx>_<Rx>_<env>.npy`.
+* Removed `timestamp` from cleaned CSVs.
+
+---
 
 ## [0.5.0] - 2025-09-20
 
