@@ -93,8 +93,11 @@ wsn_ml_pipeline_model/
 │   ├── constants.py
 │   └── logger.py
 ├── data/                  		# Data storage
-│   ├── raw/               		# Raw sensor data
-│   ├── cleaned/           		# Cleaned data output
+│   ├── Bridge/               	# Raw data collected from the bridge
+│   ├── Campus/           		# Raw data collected from the campus
+│   ├── Forest/               	# Raw data collected from the forest 
+│   ├── Garden/           		# Raw data collected from the garden
+│   ├── Lake/               	# Raw data collected from the lake 
 │  	└── preprocessed_data/ 		# Preprocessed/segmented data
 ├── data_cleaner/          		# Data cleaning
 │   └── clean_data.py      
