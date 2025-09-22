@@ -28,14 +28,24 @@ class DataCleaner:
             Tuple of (unix_timestamp, rssi, lqi) if successful, else None.
         """
         try:
-            timestamp_str, data_str = line.split('#')
+            # Be tolerant to extra spaces and multiple separators
+            if '#' not in line:
+                raise ValueError("Missing '#' separator")
+            timestamp_str, data_str = line.split('#', 1)
             timestamp_str = timestamp_str.strip()
             data_str = data_str.strip()
 
-            dt = datetime.strptime(timestamp_str, TIMESTAMP_FORMAT)
+            # Allow both comma- and dot-microseconds (e.g., 12:34:56,789 vs 12:34:56.789)
+            try:
+                dt = datetime.strptime(timestamp_str, TIMESTAMP_FORMAT)
+            except ValueError:
+                dt = datetime.strptime(timestamp_str.replace('.', ','), TIMESTAMP_FORMAT)
             unix_time = int(dt.timestamp()) 
 
-            rssi_str, lqi_str = data_str.split(',')
+            parts = [p for p in data_str.replace('\t', ',').split(',') if p != '']
+            if len(parts) < 2:
+                raise ValueError("Missing RSSI/LQI values")
+            rssi_str, lqi_str = parts[0].strip(), parts[1].strip()
             rssi = int(rssi_str)
             lqi = int(lqi_str)
 
@@ -46,23 +56,14 @@ class DataCleaner:
             return None
 
     def clean_file(self, input_path: str, output_path: str) -> int:
-        """
-        Clean raw txt file and save as CSV.
-
-        Args:
-            input_path: Path to raw input txt file.
-            output_path: Path to output CSV file.
-
-        Returns:
-            Number of valid lines parsed and written.
-        """
-        valid_rows: List[Tuple[float, int, int]] = []
-
+        valid_rows: List[Tuple[int, int]] = []
         with open(input_path, 'r', encoding='utf-8') as fin:
             for line_num, line in enumerate(fin, start=1):
                 parsed = self.parse_line(line)
                 if parsed:
-                    valid_rows.append(parsed)
+                    # parsed = (unix_time, rssi, lqi) → keep only (rssi, lqi)
+                    _, rssi, lqi = parsed
+                    valid_rows.append((rssi, lqi))
                 else:
                     self.logger.debug(f"Skipping invalid line #{line_num}")
 
@@ -78,3 +79,4 @@ class DataCleaner:
 
         self.logger.info(f"Cleaned file '{input_path}' → '{output_path}', rows written: {len(valid_rows)}")
         return len(valid_rows)
+

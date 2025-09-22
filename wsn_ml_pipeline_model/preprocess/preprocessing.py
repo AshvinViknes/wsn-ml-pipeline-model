@@ -42,11 +42,11 @@ class DataPreprocessor:
         """
         self.logger.info("Starting preprocessing of dataframe with %d rows", len(df))
 
-        # Calculate delta
+        # Calculate deltas
         df['dRSSI'] = df['rssi'].diff().fillna(0)
         df['dLQI'] = df['lqi'].diff().fillna(0)
 
-        self.logger.info("Calculated deltas for RSSI, LQI, and timestamp")
+        self.logger.info("Calculated deltas for RSSI and LQI")
 
         df['dRSSI_norm'] = self.normalize(df['dRSSI'])
         df['dLQI_norm'] = self.normalize(df['dLQI'])
@@ -63,15 +63,14 @@ class DataPreprocessor:
         self.logger.info("Segmenting data into frames of size %d with overlap %.2f (step size %d)", frame_size, overlap, step)
 
         for start in range(0, total_samples - frame_size + 1, step):
-            frame_timestamp = df['timestamp'].iloc[start:start + frame_size].values
             frame_rssi = df['dRSSI_clean'].iloc[start:start + frame_size].values
-            frame_lqi = df['dLQI_clean'].iloc[start:start + frame_size].values
-            # Stack timestamp, RSSI and LQI into shape (frame_size, 3)
-            frame = np.stack([frame_timestamp, frame_rssi, frame_lqi], axis=1)
+            frame_lqi  = df['dLQI_clean'].iloc[start:start + frame_size].values
+            # shape: (frame_size, 2) → [dRSSI_clean, dLQI_clean]
+            frame = np.stack([frame_rssi, frame_lqi], axis=1)
             frames.append(frame)
 
         self.logger.info("Created %d frames from the dataset", len(frames))
-        return np.array(frames)  # shape (num_frames, frame_size, 3)
+        return np.array(frames)  # shape (num_frames, frame_size, 2)
 
     # Normalize to [0,1]
     def normalize(self, series: pd.Series) -> pd.Series:

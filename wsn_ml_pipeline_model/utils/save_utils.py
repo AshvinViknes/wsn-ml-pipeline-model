@@ -2,7 +2,7 @@
 # This module provides utility functions to save processed frames in both CSV and NumPy formats.
 # It includes functions to save each frame as an individual CSV file and to save all frames
 # as a single NumPy array. The frames are expected to have a specific structure with
-# columns: ['timestamp', 'dRSSI_clean', 'dLQI_clean']
+# columns: ['dRSSI_clean', 'dLQI_clean']
 import os
 import logging
 import numpy as np
@@ -14,7 +14,7 @@ class FrameSaver:
     This class provides utility functions to save processed frames in both CSV and NumPy formats.
     It includes methods to save each frame as an individual CSV file and to save all frames
     as a single NumPy array. The frames are expected to have columns:
-    ['timestamp', 'dRSSI_clean', 'dLQI_clean']
+    ['dRSSI_clean', 'dLQI_clean']
     """
 
     def __init__(self, logger: logging.Logger = None):
@@ -23,15 +23,14 @@ class FrameSaver:
     def save_frames_as_csv(self, frames: np.ndarray, output_dir: str) -> None:
         """
         Save each frame as an individual CSV file in the given directory.
-        Assumes frames shape is (num_frames, frame_size, 3) with columns:
-        ['timestamp','dRSSI_clean', 'dLQI_clean']
+        Assumes frames shape is (num_frames, frame_size, 2) with columns:
+        ['dRSSI_clean','dLQI_clean']
         """
         os.makedirs(output_dir, exist_ok=True)
         self.logger.info(f"Saving frames to {output_dir}")
 
         for idx, frame in enumerate(frames):
-            df = pd.DataFrame(frame, columns=['timestamp','dRSSI_clean', 'dLQI_clean'])
-            df['timestamp'] = df['timestamp'].astype(int)
+            df = pd.DataFrame(frame, columns=['dRSSI_clean', 'dLQI_clean'])
             out_path = os.path.join(output_dir, f'frame_{idx:04d}.csv')
             df.to_csv(out_path, index=False)
 
@@ -50,7 +49,7 @@ class FrameSaver:
         Save frames in both CSV and NumPy formats.
 
         Args:
-            frames (np.ndarray): Array of frames with shape (num_frames, frame_size, 3).
+            frames (np.ndarray): Array of frames with shape (num_frames, frame_size, 2).
             csv_dir (str): Directory to save individual CSV files.
             npy_path (str): Path to save the NumPy array.
         """
