@@ -4,9 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.6.0] - 2025-09-23
+
+### Added
+
+* `preprocess/preprocessing_workflow.py` now scans env subfolders (`*/*.txt`, `*/*.csv`) and preserves `<env>/<node>` in outputs.
+
+### Changed
+
+* **Layout:**
+
+  * raw → `data/raw/<env>/<node>.txt,csv`
+  * cleaned → `data/cleaned/<env>/<node>_cleaned.csv`
+  * frames → `data/preprocessed_data/frames_<Tx>_<Rx>_<env>.npy`
+* `DataCleaner`: outputs **2 cols** (`rssi,lqi`); passes through valid CSVs.
+
+### Breaking
+
+* Removed `timestamp` from cleaned CSVs.
+
+---
+
 ## [0.5.0] - 2025-09-20
 
 ### Added
+
 * Introduced `RunHelper` class to centralize helpers for tagging, run directories, checkpoints, epoch tracking, and confusion matrix plotting.
 * New `training/frame_loader.py` for dataset handling (`FramesDataset`, parsing, loading).
 * Dedicated `training/models.py` with `ModelFactory` for model selection.
