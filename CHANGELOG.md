@@ -14,8 +14,7 @@ All notable changes to this project will be documented in this file.
 
 * **Layout:**
 
-  * raw → `data/raw/<env>/<node>.txt,csv`
-  * cleaned → `data/cleaned/<env>/<node>_cleaned.csv`
+  * raw → `data/<env>/<node>.txt,csv`
   * frames → `data/preprocessed_data/frames_<Tx>_<Rx>_<env>.npy`
 * `DataCleaner`: outputs **2 cols** (`rssi,lqi`); passes through valid CSVs.
 
