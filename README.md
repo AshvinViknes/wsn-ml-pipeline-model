@@ -41,9 +41,8 @@ Follow these steps to set up and run the pipeline from scratch.
 	```
 - After running, you’ll find results in the output directory defined in wsn_ml_pipeline_model/config/constants.py; Default directories:
 	```diff
-	+ RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
-	+ CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
-	+ PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
+	+ RAW_DATA_DIR = 'wsn_ml_pipeline_model/data'
+	+ PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data'
 	+ LOG_FILE_PATH = 'wsn_ml_pipeline_model/logs'
 	+ TRAIN_INPUT_DIR  = "wsn_ml_pipeline_model/data/preprocessed_data"
 	+ TRAIN_OUTPUT_DIR = "wsn_ml_pipeline_model/training/train_result" 
@@ -93,8 +92,11 @@ wsn_ml_pipeline_model/
 │   ├── constants.py
 │   └── logger.py
 ├── data/                  		# Data storage
-│   ├── raw/               		# Raw sensor data
-│   ├── cleaned/           		# Cleaned data output
+│   ├── Bridge/               	# Raw / Cleaned data collected from the bridge
+│   ├── Campus/           		# Raw / Cleaned data collected from the campus
+│   ├── Forest/               	# Raw / Cleaned data collected from the forest 
+│   ├── Garden/           		# Raw / Cleaned data collected from the garden
+│   ├── Lake/               	# Raw / Cleaned data collected from the lake 
 │  	└── preprocessed_data/ 		# Preprocessed/segmented data
 ├── data_cleaner/          		# Data cleaning
 │   └── clean_data.py      
@@ -127,7 +129,7 @@ wsn_ml_pipeline_model/
 
 ##  Advanced Usage
 
-1. **Prepare your raw sensor data** in `data/raw/` as `.txt` files.
+1. **Prepare your raw sensor data** in `data/` as `.txt` files.
 
 2. **Configure pipeline parameters** in `config/constants.py`.
 
@@ -135,13 +137,13 @@ wsn_ml_pipeline_model/
    ```sh
    python -m wsn_ml_pipeline_model.workflow.workflow
    ```
-   - This will clean, normalize, and segment your data, then train a CNN or ResNet model based on the settings in `config/constants.py`. Results (cleaned data, preprocessed frames, plots, reports, model weights) are saved to `data/cleaned/`, `data/preprocessed_data/`, and `training/train_result/`.
+   - This will clean, normalize, and segment your data, then train a CNN or ResNet model based on the settings in `config/constants.py`. Results (cleaned data, preprocessed frames, plots, reports, model weights) are saved to `data/`, `data/preprocessed_data/`, and `training/train_result/`.
 
 4. **(Advanced) Run only the preprocessing workflow:**
    ```sh
    python -m wsn_ml_pipeline_model.preprocess.preprocessing_workflow
    ```
-   - This will only clean, normalize, and segment your data, saving results in `data/cleaned/` as `.csv` files and `data/preprocessed_data/` as `.npy` files.
+   - This will only clean, normalize, and segment your data, saving results in `data` as `.csv` files and `data/preprocessed_data/` as `.npy` files.
 
 5. **(Advanced) Train the ML model using preprocessed data:**
    ```sh

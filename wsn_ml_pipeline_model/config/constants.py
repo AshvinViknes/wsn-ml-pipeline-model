@@ -8,7 +8,7 @@ import random
 import numpy as np
 # -------------------- Data Processing --------------------
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S,%f"
-DATA_COLUMNS = ['timestamp', 'rssi', 'lqi']
+DATA_COLUMNS = ['rssi', 'lqi']
 
 Q1_PERCENTILE = 0.25
 Q3_PERCENTILE = 0.75
@@ -17,9 +17,16 @@ FRAME_SIZE = 100
 OVERLAP = 0.5
 
 # -------------------- Data Paths --------------------
-RAW_DATA_DIR = 'wsn_ml_pipeline_model/data/raw'
+RAW_DATA_BASE_DIR = 'wsn_ml_pipeline_model/data'
+ENV_FOLDERS = {
+    1: "Garden",
+    2: "Lake",
+    3: "Forest",
+    4: "Campus",
+    5: "Bridge",
+}
 CLEANED_DATA_DIR = 'wsn_ml_pipeline_model/data/cleaned'
-PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data/frames_'
+PREPROCESSED_DATA_DIR = 'wsn_ml_pipeline_model/data/preprocessed_data'
 SAVE_FRAME_CSV = False  # or True 
 
 # -------------------- Logging --------------------

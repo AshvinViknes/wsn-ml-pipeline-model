@@ -73,8 +73,14 @@ class FrameDataLoader:
 
         for p, rx, tx, env in file_infos:
             arr = np.load(p)
-            arr = arr[..., 1:]               # keep only RSSI and LQI
-            if arr.ndim != 3 or arr.shape[-1] != 2:
+            # Backward-compatible handling:
+            # old format: (..., 3) = [timestamp, dRSSI, dLQI] → take last two
+            # new format: (..., 2) = [dRSSI, dLQI] → use as-is
+            if arr.ndim == 3 and arr.shape[-1] == 3:
+                arr = arr[..., 1:]
+            elif arr.ndim == 3 and arr.shape[-1] == 2:
+                pass
+            else:
                 raise ValueError(f"{p.name}: expect (K,L,2), got {arr.shape}")
 
             K, L, C = arr.shape
